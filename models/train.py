@@ -11,8 +11,10 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     # Verifica se há pesos salvos e carrega-os se initial_epoch > 0
     if initial_epoch > 0:
         try:
-            if load_weight is None:
-                model.load_load_s(load_weight)
+            if load_weight is not None:
+                # model.load_load_s(load_weight)
+                model = tf.keras.models.load_model(load_weight)
+
                 print(f"Carregando pesos salvos para retomar treinamento a partir da época {initial_epoch}.")
         except:
             print(f"Arquivo de pesos não encontrado em {load_weight}. Iniciando treinamento do zero.")

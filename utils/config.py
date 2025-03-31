@@ -27,7 +27,7 @@ def get_callbacks(model_name, checkpoint_path, checkpoint_all_path, delta, pacie
     if save_model_per_epoch:
        # Callbacks
         early_stopping = EarlyStopping(monitor='val_loss', 
-                                       patience=7, min_delta=0.001, 
+                                       patience=pacience, min_delta=0.001, 
                                        restore_best_weights=True, 
                                        verbose=1)
 

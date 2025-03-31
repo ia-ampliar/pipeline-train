@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import (
+    confusion_matrix,
+    roc_curve,
+    auc,
+)
 
 # Função para plotar a evolução do treinamento
 def plot_training(history):
