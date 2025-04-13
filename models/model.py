@@ -105,7 +105,6 @@ class Models:
             )
 
         return train_generator, val_generator, test_generator
-        
 
     def create_mobilenetv2_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         base_model = MobileNetV2(
@@ -134,7 +133,6 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
 
-
     def create_mnasnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
         Create a MobileNetV2 model with optional pre-trained weights.
@@ -155,7 +153,6 @@ class Models:
         output_layer = Dense(num_classes, activation="softmax")(x)
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
-    
     
     def create_alexnet(self, num_classes=2, img_size=(224, 224)):
         """
@@ -204,3 +201,110 @@ class Models:
         output_layer = Dense(num_classes, activation="softmax")(x)
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
+    
+    def create_resnet50_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create a ResNet50 model.
+        Args:
+            pretrained (bool): If True, use pre-trained weights.
+            num_classes (int): Number of output classes.
+            img_size (tuple): Input image size.
+        Returns:
+            model (tf.keras.Model): Keras model instance.
+        """
+        base_model = tf.keras.applications.ResNet50(
+            weights="imagenet" if pretrained else None,
+            include_top=False,
+            input_shape=(*img_size, 3),
+        )
+        x = GlobalAveragePooling2D()(base_model.output)
+        x = Dropout(0.5)(x)
+        output_layer = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
+    
+    def create_densenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create a DenseNet model.
+        Args:
+            pretrained (bool): If True, use pre-trained weights.
+            num_classes (int): Number of output classes.
+            img_size (tuple): Input image size.
+        Returns:
+            model (tf.keras.Model): Keras model instance.
+        """
+        base_model = tf.keras.applications.DenseNet121(
+            weights="imagenet" if pretrained else None,
+            include_top=False,
+            input_shape=(*img_size, 3),
+        )
+        x = GlobalAveragePooling2D()(base_model.output)
+        x = Dropout(0.5)(x)
+        output_layer = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
+    
+    def create_vgg16_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create a VGG16 model.
+        Args:
+            pretrained (bool): If True, use pre-trained weights.
+            num_classes (int): Number of output classes.
+            img_size (tuple): Input image size.
+        Returns:
+            model (tf.keras.Model): Keras model instance.
+        """
+        base_model = tf.keras.applications.VGG16(
+            weights="imagenet" if pretrained else None,
+            include_top=False,
+            input_shape=(*img_size, 3),
+        )
+        x = GlobalAveragePooling2D()(base_model.output)
+        x = Dropout(0.5)(x)
+        output_layer = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
+    
+    def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create an InceptionV3 model.
+        Args:
+            pretrained (bool): If True, use pre-trained weights.
+            num_classes (int): Number of output classes.
+            img_size (tuple): Input image size.
+        Returns:
+            model (tf.keras.Model): Keras model instance.
+        """
+        base_model = tf.keras.applications.InceptionV3(
+            weights="imagenet" if pretrained else None,
+            include_top=False,
+            input_shape=(*img_size, 3),
+        )
+        x = GlobalAveragePooling2D()(base_model.output)
+        x = Dropout(0.5)(x)
+        output_layer = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
+    
+    def create_efficientnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create an EfficientNet model.
+        Args:
+            pretrained (bool): If True, use pre-trained weights.
+            num_classes (int): Number of output classes.
+            img_size (tuple): Input image size.
+        Returns:
+            model (tf.keras.Model): Keras model instance.
+        """
+        base_model = tf.keras.applications.EfficientNetB0(
+            weights="imagenet" if pretrained else None,
+            include_top=False,
+            input_shape=(*img_size, 3),
+        )
+        x = GlobalAveragePooling2D()(base_model.output)
+        x = Dropout(0.5)(x)
+        output_layer = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
+    
+    
