@@ -13,21 +13,21 @@ from tensorflow.keras import regularizers
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Resizing
+from tensorflow.keras.applications import MobileNet
 
 
 class Models:
     def __init__(self):
         pass
 
-    def get_strategy(self):
+    def get_strategy(self, list_devices=None):
         """
         Get the distribution strategy for TensorFlow.
         """
         # Verifica se há GPU disponível
         gpus = tf.config.list_physical_devices('GPU')
-
         if gpus:
-            strategy = tf.distribute.MirroredStrategy()  # Usa múltiplas GPUs se disponíveis
+            strategy = tf.distribute.MirroredStrategy(devices=list_devices)  # Usa múltiplas GPUs se disponíveis
             print(f"Treinando com {len(gpus)} GPU(s)")
         else:
             strategy = tf.distribute.get_strategy()  # Treina na CPU
@@ -194,7 +194,7 @@ class Models:
         Returns:
             model (tf.keras.Model): Keras model instance.
         """
-        base_model = tf.keras.applications.ShuffleNetV2(
+        base_model = MobileNet(
             weights="imagenet" if pretrained else None,
             include_top=False,
             input_shape=(*img_size, 3),

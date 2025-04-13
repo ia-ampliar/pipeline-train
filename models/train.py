@@ -1,5 +1,7 @@
 # train.py
 import tensorflow as tf
+import pickle
+
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 
 
@@ -44,6 +46,9 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
             callbacks=[early_stopping, checkpoint, tensorboard_callback],
             verbose=1
         )
+        
+    with open(f'{model_name}_historico.pkl', 'wb') as f:
+        pickle.dump(history.history, f)
 
     # Salvar os pesos finais
     model.save_weights(weights_path + f'{model_name}_weights_224x224.h5')
