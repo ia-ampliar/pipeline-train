@@ -182,7 +182,7 @@ class Models:
         ])
         return model
     
-    def create_shuffnet(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+    def create_shuffnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
         Create a ShuffleNet model.
         Args:
