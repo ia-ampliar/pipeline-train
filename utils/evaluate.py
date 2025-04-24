@@ -8,9 +8,6 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    confusion_matrix,
-    roc_curve,
-    auc,
 )
 
 from itertools import cycle
@@ -41,7 +38,7 @@ def evaluate_model(model_path, test_generator):
 
 
 # Função para calcular e exibir métricas
-def calculate_metrics(y_true, y_pred, class_names):
+def calculate_metrics(y_true, y_pred, class_names, network_name):
     """
     Calcula e exibe métricas de avaliação.
     
@@ -50,7 +47,7 @@ def calculate_metrics(y_true, y_pred, class_names):
         y_pred (array): Classes preditas.
         class_names (list): Nomes das classes.
     """
-    print("Classification Report:")
+    print(f"Classification Report: {network_name}")
     print(classification_report(y_true, y_pred, target_names=class_names))
 
     accuracy = accuracy_score(y_true, y_pred)

@@ -20,7 +20,7 @@ from models.model import Models
 
 # Configurações
 IMG_SIZE = (224, 224)
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 EPOCHS = 100
 NUM_CLASSES = 2
 PACIENTE = 7
@@ -52,8 +52,7 @@ model_instance = Models()
 print(50*"=")
 print("               Carregando o dataset...")
 print(50*"=")
-train_generator, validation_generator, test_generator = None, None, None
-# train_generator, validation_generator, test_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
+train_generator, validation_generator, test_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
 print(50*"=")
 print("          Dataset carregado com sucesso!")
 print(50*"=")

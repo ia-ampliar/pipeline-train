@@ -7,7 +7,7 @@ from sklearn.metrics import (
 )
 
 # Função para plotar a evolução do treinamento
-def plot_training(history):
+def plot_training(history, network_name):
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
     plt.plot(history.history['loss'], label='Loss Treinamento')
@@ -23,7 +23,7 @@ def plot_training(history):
     plt.xlabel('Epocas')
     plt.ylabel('Acurácia')
     plt.legend()
-    plt.title('Evolução da Acurácia')
+    plt.title(f'Evolução da Acurácia: {network_name}')
 
     plt.show()
     plt.savefig('training_history.png')
@@ -31,7 +31,7 @@ def plot_training(history):
 
 
 # Função para plotar a matriz de confusão
-def plot_confusion_matrix(y_true, y_pred, class_names):
+def plot_confusion_matrix(y_true, y_pred, class_names, network_name):
     """
     Plota a matriz de confusão.
     
@@ -43,7 +43,7 @@ def plot_confusion_matrix(y_true, y_pred, class_names):
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title("Matriz de Confusão")
+    plt.title("Matriz de Confusão: " + network_name)
     plt.colorbar()
     tick_marks = np.arange(len(class_names))
     plt.xticks(tick_marks, class_names, rotation=45)
@@ -61,7 +61,7 @@ def plot_confusion_matrix(y_true, y_pred, class_names):
     
 
 
-def plot_roc_curve(y_true, y_pred_probs, class_labels):
+def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name):
     """
     Plota a curva ROC para cada classe com base nas predições.
 
@@ -69,6 +69,7 @@ def plot_roc_curve(y_true, y_pred_probs, class_labels):
         y_true: Rótulos reais das amostras (array).
         y_pred_probs: Probabilidades preditas para cada classe (array).
         class_labels: Lista com os nomes das classes.
+        network_name: Nome da rede neural utilizada.
     """
     # Verificar se há pelo menos duas classes
     n_classes = len(class_labels)
@@ -110,9 +111,9 @@ def plot_roc_curve(y_true, y_pred_probs, class_labels):
     # Configurações do gráfico
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate", fontsize=14)
-    plt.ylabel("True Positive Rate", fontsize=14)
-    plt.title("Curva ROC - Multiclasse", fontsize=16)
+    plt.xlabel("Taxa de Falsos Positivos", fontsize=14)
+    plt.ylabel("Taxa de Verdadeiros Positivos", fontsize=14)
+    plt.title(f"Curva ROC - Multiclasse: {network_name}", fontsize=16)
     plt.legend(loc="lower right", fontsize=12)
     plt.grid(alpha=0.3)
     plt.show()
