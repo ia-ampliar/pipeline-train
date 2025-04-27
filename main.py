@@ -10,9 +10,7 @@ from utils.config import get_gpu_memory
 from utils.config import get_callbacks
 from models.train import train_model
 from utils.visualize import plot_training
-from utils.visualize import plot_roc_curve
 from utils.evaluate import evaluate_model
-from utils.evaluate import calculate_metrics
 
 from models.model import Models
 
