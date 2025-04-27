@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
+from utils.visualize import plot_confusion_matrix
+from utils.visualize import plot_roc_curve
+import os
 
 from sklearn.metrics import (
     classification_report,
@@ -12,27 +15,37 @@ from sklearn.metrics import (
 
 from itertools import cycle
 
-
-def evaluate_model(model_path, test_generator):
-    """
-    Avalia o modelo carregado no conjunto de teste.
+def evaluate_model(test_generator, MODEL_NAME, BASE_PATH):
+    """Executa a avaliação de um modelo existente"""
+    print("\nIniciando avaliação do modelo...")
     
-    Args:
-        model_path (str): Caminho para o modelo salvo.
-        test_generator (ImageDataGenerator): Gerador de dados de teste.
 
-    Returns:
-        y_true, y_pred: Classes verdadeiras e preditas.
-    """
-    # Carregar modelo salvo
-    model = load_model(model_path)
+    # Caminho do modelo salvo
+    model_path = BASE_PATH + "/models" + f"{MODEL_NAME}_model_224x224.keras"
+    if not os.path.exists(model_path):
+        model_path = input("Por favor, insira o caminho completo do modelo que deseja avaliar: ")
+        
+    # Carregar modelo
+    model = load_model(model_path, compile=False)
+    class_indices = test_generator.class_indices  # Índices das classes
+    class_labels = list(class_indices.keys())  # Nomes das classes
 
-    # Obter as classes verdadeiras e as predições
-    y_true = test_generator.classes
-    y_pred_probs = model.predict(test_generator)
-    y_pred = np.argmax(y_pred_probs, axis=1)
+    # Avaliação no conjunto de teste
+    y_true = test_generator.classes  # Classes verdadeiras
+    y_pred_probs = model.predict(test_generator)  # Probabilidades preditas
+    y_pred = np.argmax(y_pred_probs, axis=1)  # Classes preditas
 
-    return y_true, y_pred
+    # Calcular métricas
+    calculate_metrics(y_true, y_pred, class_labels, MODEL_NAME)
+
+    # Plotar matriz de confusão
+    plot_confusion_matrix(y_true, y_pred, class_labels, MODEL_NAME)
+    
+    # Plotar curva ROC
+    plot_roc_curve(y_true, y_pred_probs, class_labels, MODEL_NAME)
+
+    input("\nPressione Enter para voltar ao menu principal...")
+
 
 
 

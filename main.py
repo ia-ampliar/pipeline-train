@@ -10,7 +10,6 @@ from utils.config import get_gpu_memory
 from utils.config import get_callbacks
 from models.train import train_model
 from utils.visualize import plot_training
-from utils.visualize import plot_confusion_matrix
 from utils.visualize import plot_roc_curve
 from utils.evaluate import evaluate_model
 from utils.evaluate import calculate_metrics
@@ -146,7 +145,7 @@ def train_new_model(model_instance, MODEL_NAME, LOG_DIR):
     get_gpu_memory()
 
     # Criar modelo dentro da estratégia
-    list_device = ["/gpu:0"]
+    list_device = None
     strategy = model_instance.get_strategy(list_device)
     with strategy.scope():
         model = call_model(MODEL_NAME)
@@ -180,41 +179,11 @@ def train_new_model(model_instance, MODEL_NAME, LOG_DIR):
     )
 
     # Plotar evolução do treinamento
-    plot_training(history)
+    plot_training(history, MODEL_NAME)
 
     print("\nTreinamento concluído com sucesso!")
     input("\nPressione Enter para voltar ao menu principal...")
 
-def evaluate_model(test_generator, MODEL_NAME):
-    """Executa a avaliação de um modelo existente"""
-    print("\nIniciando avaliação do modelo...")
-    
-
-    # Caminho do modelo salvo
-    model_path = BASE_PATH + "/models" + f"{MODEL_NAME}_model_224x224.keras"
-    if not os.path.exists(model_path):
-        model_path = input("Por favor, insira o caminho completo do modelo que deseja avaliar: ")
-        
-    # Carregar modelo
-    model = load_model(model_path, compile=False)
-    class_indices = test_generator.class_indices  # Índices das classes
-    class_labels = list(class_indices.keys())  # Nomes das classes
-
-    # Avaliação no conjunto de teste
-    y_true = test_generator.classes  # Classes verdadeiras
-    y_pred_probs = model.predict(test_generator)  # Probabilidades preditas
-    y_pred = np.argmax(y_pred_probs, axis=1)  # Classes preditas
-
-    # Calcular métricas
-    calculate_metrics(y_true, y_pred, class_labels)
-
-    # Plotar matriz de confusão
-    plot_confusion_matrix(y_true, y_pred, class_labels)
-    
-    # Plotar curva ROC
-    plot_roc_curve(y_true, y_pred_probs, class_labels)
-
-    input("\nPressione Enter para voltar ao menu principal...")
 
 def continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, validation_generator):   
     """Continua o treinamento de um modelo existente"""
@@ -235,7 +204,7 @@ def continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, vali
     load_weight = CHECKPOINT_ALL_PATH + f"{MODEL_NAME}_epoch_{initia_epoch}.keras"
 
     # Criar modelo dentro da estratégia
-    list_device = ["/gpu:0"]
+    list_device = None
     strategy = model_instance.get_strategy(list_device)
     with strategy.scope():
         model = call_model(MODEL_NAME)
@@ -269,7 +238,7 @@ def continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, vali
     )
 
     # Plotar evolução do treinamento
-    plot_training(history)
+    plot_training(history, MODEL_NAME)
 
     print("\nTreinamento adicional concluído com sucesso!")
     input("\nPressione Enter para voltar ao menu principal...")
@@ -383,7 +352,7 @@ def main():
                 print(50*"=")
             time.sleep(2)
             # Avaliação do modelo
-            evaluate_model(test_generator, MODEL_NAME)
+            evaluate_model(test_generator, MODEL_NAME, BASE_PATH)
         elif choice == 3:
             model_options, model_choice = models_available()
             if model_choice == 10:
