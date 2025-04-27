@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from utils.visualize import plot_confusion_matrix
 from utils.visualize import plot_roc_curve
-from utils.evaluate import calculate_metrics
 
 import os
 
