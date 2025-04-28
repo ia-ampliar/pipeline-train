@@ -39,7 +39,7 @@ def get_callbacks(model_name, checkpoint_path, checkpoint_all_path, delta, pacie
                                           verbose=1)
 
         # Salva o modelo em toda época
-        checkpoint_all = ModelCheckpoint(checkpoint_all_path + f"{model_name}_checkpoint.keras", 
+        checkpoint_all = ModelCheckpoint(checkpoint_all_path + f"{model_name}" + "_epoch_{epoch:02d}.keras", 
                                          save_weights_only=False, 
                                          save_best_only=False, 
                                          verbose=1)
