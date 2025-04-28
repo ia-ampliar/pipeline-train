@@ -62,62 +62,62 @@ def plot_confusion_matrix(y_true, y_pred, class_names, network_name):
     plt.tight_layout()
     
 
-
 def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name):
     """
-    Plota a curva ROC para cada classe com base nas predições.
-
-    Args:
-        y_true: Rótulos reais das amostras (array).
-        y_pred_probs: Probabilidades preditas para cada classe (array).
-        class_labels: Lista com os nomes das classes.
-        network_name: Nome da rede neural utilizada.
+    Plota a curva ROC para problemas binários ou multiclasse.
     """
-    # Verificar se há pelo menos duas classes
+
     n_classes = len(class_labels)
-    if n_classes < 2:
-        raise ValueError("Curva ROC requer pelo menos duas classes.")
-
-    # Binarizar os rótulos reais
-    y_true_bin = label_binarize(y_true, classes=list(range(n_classes)))
-
-    # Validar dimensões de y_pred_probs
-    if y_pred_probs.shape[1] != n_classes:
-        raise ValueError(
-            f"Dimensão de y_pred_probs ({y_pred_probs.shape[1]}) não corresponde ao número de classes ({n_classes})."
-        )
-
-    # Configurações para plotar a curva ROC
     plt.figure(figsize=(10, 8))
-    colors = cycle(["blue", "green", "red", "purple", "orange", "brown"])
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
 
-    for i, color in zip(range(n_classes), colors):
-        fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_pred_probs[:, i])
-        roc_auc[i] = auc(fpr[i], tpr[i])
+    # Se for binário
+    if n_classes == 2:
+        if y_pred_probs.ndim > 1:
+            y_pred_probs = y_pred_probs[:, 0]  # Só pegar a primeira coluna
+        
+        fpr, tpr, _ = roc_curve(y_true, y_pred_probs)
+        roc_auc = auc(fpr, tpr)
 
-        # Plotar a curva ROC para cada classe
         plt.plot(
-            fpr[i],
-            tpr[i],
-            color=color,
+            fpr,
+            tpr,
+            color="blue",
             lw=2,
-            label=f"Classe {class_labels[i]} (AUC = {roc_auc[i]:.2f})",
+            label=f"Classe {class_labels[1]} (AUC = {roc_auc:.2f})",
         )
 
-    # Plotar a linha de referência
-    plt.plot([0, 1], [0, 1], "k--", lw=2)
+    else:
+        # Multiclasse (como estava)
+        y_true_bin = label_binarize(y_true, classes=list(range(n_classes)))
 
-    # Configurações do gráfico
+        if y_pred_probs.shape[1] != n_classes:
+            raise ValueError(
+                f"Dimensão de y_pred_probs ({y_pred_probs.shape[1]}) não corresponde ao número de classes ({n_classes})."
+            )
+
+        colors = cycle(["blue", "green", "red", "purple", "orange", "brown"])
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+
+        for i, color in zip(range(n_classes), colors):
+            fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_pred_probs[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+
+            plt.plot(
+                fpr[i],
+                tpr[i],
+                color=color,
+                lw=2,
+                label=f"Classe {class_labels[i]} (AUC = {roc_auc[i]:.2f})",
+            )
+
+    plt.plot([0, 1], [0, 1], "k--", lw=2)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel("Taxa de Falsos Positivos", fontsize=14)
     plt.ylabel("Taxa de Verdadeiros Positivos", fontsize=14)
-    plt.title(f"Curva ROC - Multiclasse: {network_name}", fontsize=16)
+    plt.title(f"Curva ROC - {network_name}", fontsize=16)
     plt.legend(loc="lower right", fontsize=12)
     plt.grid(alpha=0.3)
     plt.show()
-
-
