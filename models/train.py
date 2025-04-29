@@ -1,9 +1,9 @@
 # train.py
 import tensorflow as tf
-import pickle
-
+import pandas as pd
+from datetime import datetime
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-
+import pickle
 
 def train_model(model, model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
@@ -14,41 +14,51 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     if initial_epoch > 0:
         try:
             if load_weight is not None:
-                # model.load_load_s(load_weight)
                 model = tf.keras.models.load_model(load_weight)
-
                 print(f"Carregando pesos salvos para retomar treinamento a partir da época {initial_epoch}.")
         except:
             print(f"Arquivo de pesos não encontrado em {load_weight}. Iniciando treinamento do zero.")
-            initial_epoch = 0  # Se não houver pesos, começa do zero
+            initial_epoch = 0
 
+    # Lista de callbacks
+    callbacks_list = [early_stopping, checkpoint, tensorboard_callback]
     if checkpoint_all is not None:
-        # Treinamento
-        history = model.fit(
-            train_generator,
-            validation_data=val_generator,
-            epochs=epochs,
-            initial_epoch=initial_epoch,  # Define a época inicial
-            steps_per_epoch=train_generator.samples // batch_size,
-            validation_steps=val_generator.samples // batch_size,
-            callbacks=[early_stopping, checkpoint, checkpoint_all, tensorboard_callback],
-            verbose=1
-        )
-    else:
-        # Treinamento
-        history = model.fit(
-            train_generator,
-            validation_data=val_generator,
-            epochs=epochs,
-            initial_epoch=initial_epoch,  # Define a época inicial
-            steps_per_epoch=train_generator.samples // batch_size,
-            validation_steps=val_generator.samples // batch_size,
-            callbacks=[early_stopping, checkpoint, tensorboard_callback],
-            verbose=1
-        )
-        
+        callbacks_list.append(checkpoint_all)
+    
+    # Adiciona callback para salvar histórico em CSV
+    csv_logger = tf.keras.callbacks.CSVLogger(
+        f'{model_name}_training_history.csv',
+        separator=',',
+        append=False
+    )
+    callbacks_list.append(csv_logger)
+
+    # Treinamento
+    history = model.fit(
+        train_generator,
+        validation_data=val_generator,
+        epochs=epochs,
+        initial_epoch=initial_epoch,
+        steps_per_epoch=train_generator.samples // batch_size,
+        validation_steps=val_generator.samples // batch_size,
+        callbacks=callbacks_list,
+        verbose=1
+    )
+    
+    # Salva o histórico completo em pickle (opcional)
     with open(f'{model_name}_historico.pkl', 'wb') as f:
         pickle.dump(history.history, f)
+
+    # Processa o histórico para criar um DataFrame mais completo
+    history_df = pd.DataFrame(history.history)
+    history_df.insert(0, 'epoch', range(initial_epoch + 1, initial_epoch + 1 + len(history_df)))
+    history_df.insert(1, 'model_name', model_name)
+    
+    # Salva em CSV com informações adicionais
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_filename = f'{model_name}_training_history_{timestamp}.csv'
+    history_df.to_csv(csv_filename, index=False)
+    print(f"Histórico completo salvo em: {csv_filename}")
 
     # Salvar os pesos finais
     model.save_weights(weights_path + f'{model_name}_weights_224x224.h5')
