@@ -1,11 +1,10 @@
 import sys
+from tensorflow.keras.models import load_model
+import numpy as np
+import tensorflow as tf
+import datetime
 import os
 import time
-import datetime
-from tqdm import tqdm
-from tensorflow.keras.models import load_model
-import tensorflow as tf
-import numpy as np
 
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
@@ -46,21 +45,12 @@ if not os.path.exists(MODEL_PATH):
 
 
 model_instance = Models()
-# Carregar os geradores de dados com barra de progresso
+
+# Carregar os geradores de dados
 print(50*"=")
 print("               Carregando o dataset...")
 print(50*"=")
-
-# Simulando um processo de carregamento com barra de progresso
-with tqdm(total=100, desc="Progresso", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}") as pbar:
-    # Simula etapas do processo de carregamento
-    for i in range(10):
-        time.sleep(0.1)  # Simula um delay no carregamento
-        pbar.update(10)  # Atualiza a barra em 10% a cada iteração
-
-# Carrega os geradores de dados
 train_generator, validation_generator, test_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
-
 print(50*"=")
 print("          Dataset carregado com sucesso!")
 print(50*"=")
