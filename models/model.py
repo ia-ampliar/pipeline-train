@@ -322,7 +322,7 @@ class Models:
         return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
 
 
-    def create_efficientnetb4_model(self, num_classes=2, img_size=(224, 224)):
+    def create_efficientnetb4_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
         Cria um modelo EfficientNetB4 com:
         - Pré-treinamento em ImageNet.
@@ -332,7 +332,7 @@ class Models:
         """
         # Base do modelo (EfficientNetB4)
         base_model = tf.keras.applications.EfficientNetB4(
-            weights="imagenet",
+            weights="imagenet" if pretrained else None,
             include_top=False,
             input_shape=(*img_size, 3)
         )
