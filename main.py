@@ -1,10 +1,11 @@
 import sys
-from tensorflow.keras.models import load_model
-import numpy as np
-import tensorflow as tf
-import datetime
 import os
 import time
+import datetime
+from tqdm import tqdm
+from tensorflow.keras.models import load_model
+import tensorflow as tf
+import numpy as np
 
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
@@ -45,11 +46,21 @@ if not os.path.exists(MODEL_PATH):
 
 
 model_instance = Models()
-# Carregar os geradores de dados
+# Carregar os geradores de dados com barra de progresso
 print(50*"=")
 print("               Carregando o dataset...")
 print(50*"=")
+
+# Simulando um processo de carregamento com barra de progresso
+with tqdm(total=100, desc="Progresso", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}") as pbar:
+    # Simula etapas do processo de carregamento
+    for i in range(10):
+        time.sleep(0.1)  # Simula um delay no carregamento
+        pbar.update(10)  # Atualiza a barra em 10% a cada iteração
+
+# Carrega os geradores de dados
 train_generator, validation_generator, test_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
+
 print(50*"=")
 print("          Dataset carregado com sucesso!")
 print(50*"=")
@@ -101,6 +112,16 @@ def call_model(model_name):
         elif model_name == "efficientnet":
             model = model_instance.create_efficientnet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+            model.summary()
+            return model
+
+        elif model_name == "efficientnetv2":
+            model = model_instance.create_efficientnetb4_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                loss='categorical_crossentropy',
+                metrics=['accuracy', tf.keras.metrics.AUC(name='auc')]
+            )
             model.summary()
             return model
         
@@ -258,13 +279,14 @@ def models_available():
     print("1.   alexnet")
     print("2.   densenet")
     print("3.   efficientnet")
-    print("4.   inception")
-    print("5.   mobilenet")
-    print("6.   mobilenetv2")
-    print("7.   resnet50")
-    print("8.   vgg16")
-    print("9.   shufflenet")
-    print("10.  retornar para o menu principal")
+    print("4.   efficientnetv2")
+    print("5.   inception")
+    print("6.   mobilenet")
+    print("7.   mobilenetv2")
+    print("8.   resnet50")
+    print("9.   vgg16")
+    print("10.  shufflenet")
+    print("11.  retornar para o menu principal")
     print("="*50)
     model_choice = int(input("Escolha um dos modelos (1-10): "))
     
@@ -272,12 +294,13 @@ def models_available():
         1: "alexnet",
         2: "densenet",
         3: "efficientnet",
-        4: "inception",
-        5: "mobilenet",
-        6: "mobilenetv2",
-        7: "resnet50",
-        8: "vgg16",
-        9: "shufflenet"
+        4: "efficientnetv2",
+        5: "inception",
+        6: "mobilenet",
+        7: "mobilenetv2",
+        8: "resnet50",
+        9: "vgg16",
+        10: "shufflenet"
     }
 
     return model_options, model_choice
@@ -293,23 +316,26 @@ def get_model_name(model_choice):
         
     elif model_choice == 3:
         return "efficientnet"
-        
+
     elif model_choice == 4:
-        return "inception"
+        return "efficientnetv2"
         
     elif model_choice == 5:
-        return "mobilenet"
+        return "inception"
         
     elif model_choice == 6:
-        return "mobilenetv2"
+        return "mobilenet"
         
     elif model_choice == 7:
-        return "resnet50"
+        return "mobilenetv2"
         
     elif model_choice == 8:
-        return "vgg16"
+        return "resnet50"
         
     elif model_choice == 9:
+        return "vgg16"
+        
+    elif model_choice == 10:
         return "shufflenet"
     
     else:
