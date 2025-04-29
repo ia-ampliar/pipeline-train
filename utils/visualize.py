@@ -62,10 +62,15 @@ def plot_confusion_matrix(y_true, y_pred, class_names, network_name):
     plt.tight_layout()
     
 
-def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name):
+def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name, multicass=False):
     """
     Plota a curva ROC para problemas binários ou multiclasse.
     """
+
+    if multicass:
+        y_pred_probs = 1 - y_pred_probs  # usar a probabilidade da classe positiva (CIN)
+    else:
+        pass
 
     n_classes = len(class_labels)
     plt.figure(figsize=(10, 8))

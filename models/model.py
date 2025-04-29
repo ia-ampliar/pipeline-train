@@ -9,11 +9,12 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import regularizers
 from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Resizing
 from tensorflow.keras.applications import MobileNet
+from tensorflow.keras import Model, layers, regularizers
+from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
+
 
 
 class Models:
@@ -307,4 +308,47 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
-    
+        
+
+    def channel_attention(self, input_tensor):
+        """Módulo de Attention para focar em regiões relevantes da imagem."""
+        channels = input_tensor.shape[-1]
+        shared_layer = Dense(channels // 8, activation='relu')
+        avg_pool = GlobalAveragePooling2D()(input_tensor)
+        max_pool = GlobalMaxPooling2D()(input_tensor)
+        avg_out = shared_layer(avg_pool)
+        max_out = shared_layer(max_pool)
+        attention = Dense(channels, activation='sigmoid')(avg_out + max_out)
+        return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
+
+
+    def create_efficientnetb4_model(self, num_classes=2, img_size=(224, 224)):
+        """
+        Cria um modelo EfficientNetB4 com:
+        - Pré-treinamento em ImageNet.
+        - Camadas de Attention.
+        - Regularização (Dropout + L2).
+        - Fine-tuning direcionado.
+        """
+        # Base do modelo (EfficientNetB4)
+        base_model = tf.keras.applications.EfficientNetB4(
+            weights="imagenet",
+            include_top=False,
+            input_shape=(*img_size, 3)
+        )
+        
+        # Congelar camadas iniciais e descongelar as últimas 10
+        base_model.trainable = False
+        for layer in base_model.layers[-10:]:
+            layer.trainable = True
+        
+        # Adicionar Attention + Camadas Personalizadas
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.7)(x)
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
+        model = Model(inputs=base_model.input, outputs=output_layer)
+        return model
