@@ -9,16 +9,16 @@ from sklearn.metrics import (
     roc_curve,
     auc,
 )
+import os
+import matplotlib.pyplot as plt
+import pickle
 
-# Função para plotar a evolução do treinamento
 def plot_training(history, network_name, pickle_path=None):
     """
-    Plota a evolução da loss e acurácia durante o treinamento. 
-
+    Plota a evolução da loss e acurácia durante o treinamento.
     """
-    BASE_PATH = "metrics/"
-    if not os.path.exists(BASE_PATH):
-        os.makedirs(BASE_PATH)
+    BASE_PATH = "metrics"
+    os.makedirs(BASE_PATH, exist_ok=True)  # Cria o diretório se não existir (sem erros)
 
     plt.figure(figsize=(12, 5))
 
@@ -27,57 +27,54 @@ def plot_training(history, network_name, pickle_path=None):
         with open(pickle_path, 'rb') as f:
             history = pickle.load(f)
         
-        # Verifica se é um dicionário com as métricas esperadas
         if not isinstance(history, dict):
-            print("O conteúdo do arquivo não é um dicionário. Verifique se é um histórico válido.")
+            print("Erro: O conteúdo do arquivo não é um dicionário válido.")
             return
         
-        # Loss
+        # Plot Loss
         plt.subplot(1, 2, 1)
         plt.plot(history.get('loss', []), label='Loss Treinamento')
         plt.plot(history.get('val_loss', []), label='Loss Validação')
         plt.title(f'Evolução da Loss: {network_name}')
-        plt.xlabel('Epocas')
+        plt.xlabel('Épocas')
         plt.ylabel('Loss')
         plt.legend()
 
-        # Accuracy
+        # Plot Accuracy
         plt.subplot(1, 2, 2)
         plt.plot(history.get('accuracy', []), label='Acurácia Treinamento')
         plt.plot(history.get('val_accuracy', []), label='Acurácia Validação')
         plt.title(f'Evolução da Acurácia: {network_name}')
-        plt.xlabel('Epocas')
+        plt.xlabel('Épocas')
         plt.ylabel('Acurácia')
         plt.legend()
 
-        plt.tight_layout()
-        plt.show()
-        plt.savefig(BASE_PATH + f'training_history_(loss/acc)_{network_name}.png')
-        plt.close()
-
-
     else:
+        # Plot Loss (direto do history do Keras)
         plt.subplot(1, 2, 1)
         plt.plot(history.history['loss'], label='Loss Treinamento')
         plt.plot(history.history['val_loss'], label='Loss Validação')
-        plt.xlabel('Epocas')
+        plt.title(f'Evolução da Loss: {network_name}')
+        plt.xlabel('Épocas')
         plt.ylabel('Loss')
         plt.legend()
-        plt.title(f'Evolução da Loss: {network_name}')
 
+        # Plot Accuracy (direto do history do Keras)
         plt.subplot(1, 2, 2)
         plt.plot(history.history['accuracy'], label='Acurácia Treinamento')
         plt.plot(history.history['val_accuracy'], label='Acurácia Validação')
-        plt.xlabel('Epocas')
+        plt.title(f'Evolução da Acurácia: {network_name}')
+        plt.xlabel('Épocas')
         plt.ylabel('Acurácia')
         plt.legend()
-        plt.title(f'Evolução da Acurácia: {network_name}')
 
-        plt.show()
-        plt.savefig(BASE_PATH + f'training_history_(loss/acc)_{network_name}.png')
-        plt.tight_layout()
-        plt.close()
-
+    plt.tight_layout()
+    
+    # Salva a figura (usando os.path.join para compatibilidade entre sistemas)
+    output_path = os.path.join(BASE_PATH, f"training_history_(loss_acc)_{network_name}.png")
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f"Figura salva em: {output_path}")
 
 
 # Função para plotar a matriz de confusão
