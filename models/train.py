@@ -4,12 +4,17 @@ import pandas as pd
 from datetime import datetime
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 import pickle
+import os
 
 def train_model(model, model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
                 tensorboard_callback, train_generator, val_generator, 
                 initial_epoch=0, load_weight=None):
     
+    BASE_DIR = "train history/"
+    if not os.path.exists(BASE_DIR):
+        os.makedirs(BASE_DIR)
+
     # Verifica se há pesos salvos e carrega-os se initial_epoch > 0
     if initial_epoch > 0:
         try:
@@ -46,7 +51,7 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     )
     
     # Salva o histórico completo em pickle (opcional)
-    with open(f'{model_name}_historico.pkl', 'wb') as f:
+    with open(BASE_DIR + f'{model_name}_historico.pkl', 'wb') as f:
         pickle.dump(history.history, f)
 
     # Processa o histórico para criar um DataFrame mais completo
@@ -56,7 +61,7 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     
     # Salva em CSV com informações adicionais
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f'{model_name}_training_history_{timestamp}.csv'
+    csv_filename = BASE_DIR + f'{model_name}_training_history_{timestamp}.csv'
     history_df.to_csv(csv_filename, index=False)
     print(f"Histórico completo salvo em: {csv_filename}")
 

@@ -82,10 +82,10 @@ def calculate_metrics(y_true, y_pred, class_names, network_name):
 
 
     # Salvar o classification report em uma figura
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 5))
     plt.text(0.1, 0.1, report, fontfamily='monospace', fontsize=10)
     plt.axis('off')
-    plt.savefig(BASE_PATH + "classification_report{network_name}.png", bbox_inches='tight', dpi=300)
+    plt.savefig(BASE_PATH + f"classification_report{network_name}.png", bbox_inches='tight', dpi=300)
     plt.close()
 
 
