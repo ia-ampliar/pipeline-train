@@ -107,6 +107,18 @@ class Models:
 
         return train_generator, val_generator, test_generator
 
+    def channel_attention(self, input_tensor):
+        """Módulo de Attention para focar em regiões relevantes da imagem."""
+        channels = input_tensor.shape[-1]
+        shared_layer = Dense(channels // 8, activation='relu')
+        avg_pool = GlobalAveragePooling2D()(input_tensor)
+        max_pool = GlobalMaxPooling2D()(input_tensor)
+        avg_out = shared_layer(avg_pool)
+        max_out = shared_layer(max_pool)
+        attention = Dense(channels, activation='sigmoid')(avg_out + max_out)
+        return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
+    
+
     def create_mobilenetv2_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         base_model = MobileNetV2(
             weights="imagenet" if pretrained else None,
@@ -266,26 +278,59 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
+    # def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+    #     """
+    #     Create an InceptionV3 model.
+    #     Args:
+    #         pretrained (bool): If True, use pre-trained weights.
+    #         num_classes (int): Number of output classes.
+    #         img_size (tuple): Input image size.
+    #     Returns:
+    #         model (tf.keras.Model): Keras model instance.
+    #     """
+    #     base_model = tf.keras.applications.InceptionV3(
+    #         weights="imagenet" if pretrained else None,
+    #         include_top=False,
+    #         input_shape=(*img_size, 3),
+    #     )
+    #     x = GlobalAveragePooling2D()(base_model.output)
+    #     x = Dropout(0.5)(x)
+    #     output_layer = Dense(num_classes, activation="softmax")(x)
+    #     model = Model(inputs=base_model.input, outputs=output_layer)
+    #     return model
+    
     def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create an InceptionV3 model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Cria um modelo InceptionV3 aprimorado com:
+        - Pré-treinamento em ImageNet (opcional)
+        - Mecanismo de Attention
+        - Regularização (Dropout + L2)
+        - Fine-tuning direcionado
+        - Batch Normalization
         """
+        # Base do modelo
         base_model = tf.keras.applications.InceptionV3(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
+            input_shape=(*img_size, 3)
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        
+        # Fine-tuning: descongelar últimos 15 layers (Inception tem mais camadas que EfficientNet)
+        base_model.trainable = False
+        for layer in base_model.layers[-15:]:
+            layer.trainable = True
+        
+        # Adicionar Attention + Camadas Personalizadas
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.7)(x)
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
+
     
     def create_efficientnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
@@ -308,18 +353,6 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
-        
-
-    def channel_attention(self, input_tensor):
-        """Módulo de Attention para focar em regiões relevantes da imagem."""
-        channels = input_tensor.shape[-1]
-        shared_layer = Dense(channels // 8, activation='relu')
-        avg_pool = GlobalAveragePooling2D()(input_tensor)
-        max_pool = GlobalMaxPooling2D()(input_tensor)
-        avg_out = shared_layer(avg_pool)
-        max_out = shared_layer(max_pool)
-        attention = Dense(channels, activation='sigmoid')(avg_out + max_out)
-        return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
 
 
     def create_efficientnetb4_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
