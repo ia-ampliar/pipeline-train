@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from utils.visualize import plot_confusion_matrix
 from utils.visualize import plot_roc_curve
+from sklearn.metrics import ConfusionMatrixDisplay
 
 import os
 
@@ -16,7 +17,7 @@ from sklearn.metrics import (
 
 from itertools import cycle
 
-def evaluate_model(test_generator, MODEL_NAME, BASE_PATH):
+def evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=False):
     """Executa a avaliação de um modelo existente"""
     print("\nIniciando avaliação do modelo...")
     
@@ -43,7 +44,7 @@ def evaluate_model(test_generator, MODEL_NAME, BASE_PATH):
     plot_confusion_matrix(y_true, y_pred, class_labels, MODEL_NAME)
     
     # Plotar curva ROC
-    plot_roc_curve(y_true, y_pred_probs, class_labels, MODEL_NAME)
+    plot_roc_curve(y_true, y_pred_probs, class_labels, MODEL_NAME, multiclass=False)
 
     input("\nPressione Enter para voltar ao menu principal...")
 
@@ -61,8 +62,13 @@ def calculate_metrics(y_true, y_pred, class_names, network_name):
         y_pred (array): Classes preditas.
         class_names (list): Nomes das classes.
     """
+    BASE_PATH = "metrics/"
+    if not os.path.exists(BASE_PATH):
+        os.makedirs(BASE_PATH)
+
     print(f"Classification Report: {network_name}")
-    print(classification_report(y_true, y_pred, target_names=class_names))
+    report = classification_report(y_true, y_pred, target_names=class_names)
+    print(report)
 
     accuracy = accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred, average='weighted')
@@ -73,6 +79,14 @@ def calculate_metrics(y_true, y_pred, class_names, network_name):
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
     print(f"F1-Score: {f1:.4f}")
+
+
+    # Salvar o classification report em uma figura
+    plt.figure(figsize=(10, 6))
+    plt.text(0.1, 0.1, report, fontfamily='monospace', fontsize=10)
+    plt.axis('off')
+    plt.savefig(BASE_PATH + "classification_report{network_name}.png", bbox_inches='tight', dpi=300)
+    plt.close()
 
 
 

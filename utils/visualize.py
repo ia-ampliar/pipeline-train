@@ -1,7 +1,9 @@
-import matplotlib.pyplot as plt
-import numpy as np
 from sklearn.preprocessing import label_binarize
 from itertools import cycle
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import os
 from sklearn.metrics import (
     confusion_matrix,
     roc_curve,
@@ -9,26 +11,71 @@ from sklearn.metrics import (
 )
 
 # Função para plotar a evolução do treinamento
-def plot_training(history, network_name):
+def plot_training(history, network_name, pickle_path=None):
+    """
+    Plota a evolução da loss e acurácia durante o treinamento. 
+
+    """
+    BASE_PATH = "metrics/"
+    if not os.path.exists(BASE_PATH):
+        os.makedirs(BASE_PATH)
+
     plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['loss'], label='Loss Treinamento')
-    plt.plot(history.history['val_loss'], label='Loss Validação')
-    plt.xlabel('Epocas')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.title('Evolução da Loss')
 
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['accuracy'], label='Acurácia Treinamento')
-    plt.plot(history.history['val_accuracy'], label='Acurácia Validação')
-    plt.xlabel('Epocas')
-    plt.ylabel('Acurácia')
-    plt.legend()
-    plt.title(f'Evolução da Acurácia: {network_name}')
+    if pickle_path is not None:
+        with open(pickle_path, 'rb') as f:
+            history = pickle.load(f)
+        
+        # Verifica se é um dicionário com as métricas esperadas
+        if not isinstance(history, dict):
+            print("O conteúdo do arquivo não é um dicionário. Verifique se é um histórico válido.")
+            return
+        
+        # Loss
+        plt.subplot(1, 2, 1)
+        plt.plot(history.get('loss', []), label='Loss Treinamento')
+        plt.plot(history.get('val_loss', []), label='Loss Validação')
+        plt.title(f'Evolução da Loss: {network_name}')
+        plt.xlabel('Epocas')
+        plt.ylabel('Loss')
+        plt.legend()
 
-    plt.show()
-    plt.savefig('training_history.png')
+        # Accuracy
+        plt.subplot(1, 2, 2)
+        plt.plot(history.get('accuracy', []), label='Acurácia Treinamento')
+        plt.plot(history.get('val_accuracy', []), label='Acurácia Validação')
+        plt.title(f'Evolução da Acurácia: {network_name}')
+        plt.xlabel('Epocas')
+        plt.ylabel('Acurácia')
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+        plt.savefig(BASE_PATH + f'training_history_(loss/acc)_{network_name}.png')
+        plt.close()
+
+
+    else:
+        plt.subplot(1, 2, 1)
+        plt.plot(history.history['loss'], label='Loss Treinamento')
+        plt.plot(history.history['val_loss'], label='Loss Validação')
+        plt.xlabel('Epocas')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.title(f'Evolução da Loss: {network_name}')
+
+        plt.subplot(1, 2, 2)
+        plt.plot(history.history['accuracy'], label='Acurácia Treinamento')
+        plt.plot(history.history['val_accuracy'], label='Acurácia Validação')
+        plt.xlabel('Epocas')
+        plt.ylabel('Acurácia')
+        plt.legend()
+        plt.title(f'Evolução da Acurácia: {network_name}')
+
+        plt.show()
+        plt.savefig(BASE_PATH + f'training_history_(loss/acc)_{network_name}.png')
+        plt.tight_layout()
+        plt.close()
 
 
 
@@ -42,6 +89,10 @@ def plot_confusion_matrix(y_true, y_pred, class_names, network_name):
         y_pred (array): Classes preditas.
         class_names (list): Nomes das classes.
     """
+    BASE_PATH = "metrics/"
+    if not os.path.exists(BASE_PATH):
+        os.makedirs(BASE_PATH)
+
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
@@ -59,15 +110,21 @@ def plot_confusion_matrix(y_true, y_pred, class_names, network_name):
 
     plt.ylabel("Classe Verdadeira")
     plt.xlabel("Classe Predita")
+    plt.savefig(BASE_PATH + f'confuse_matrix_{network_name}.png')
     plt.tight_layout()
     
 
-def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name, multicass=False):
+def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name, multiclass=False):
     """
     Plota a curva ROC para problemas binários ou multiclasse.
     """
 
-    if multicass:
+    BASE_PATH = "metrics/"
+    if not os.path.exists(BASE_PATH):
+        os.makedirs(BASE_PATH)
+
+
+    if multiclass:
         y_pred_probs = 1 - y_pred_probs  # usar a probabilidade da classe positiva (CIN)
     else:
         pass
@@ -125,4 +182,6 @@ def plot_roc_curve(y_true, y_pred_probs, class_labels, network_name, multicass=F
     plt.title(f"Curva ROC - {network_name}", fontsize=16)
     plt.legend(loc="lower right", fontsize=12)
     plt.grid(alpha=0.3)
+    plt.savefig(BASE_PATH + f'roc_curve_{network_name}.png')
     plt.show()
+    plt.tight_layout()
