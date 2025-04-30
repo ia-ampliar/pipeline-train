@@ -22,7 +22,8 @@ def plot_training(history, network_name, pickle_path=None):
 
     plt.figure(figsize=(12, 5))
 
-    if pickle_path is not None:
+    if (pickle_path is not None) or (history is None):
+        # Carrega o histórico de treinamento a partir do arquivo pickle
         with open(pickle_path, 'rb') as f:
             history = pickle.load(f)
         
