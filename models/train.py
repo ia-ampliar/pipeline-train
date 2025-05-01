@@ -66,7 +66,7 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     print(f"Histórico completo salvo em: {csv_filename}")
 
     # Salvar os pesos finais
-    model.save_weights(weights_path + f'{model_name}_weights_224x224.h5')
+    model.save_weights(weights_path + f'{model_name}_weights_224x224.weights.h5')
     model.save(model_path + f'{model_name}_model_224x224.keras')
     print(f"Pesos treinados salvos em: {weights_path}")
 

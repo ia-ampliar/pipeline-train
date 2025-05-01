@@ -2,6 +2,7 @@
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.applications import NASNetMobile
+from tensorflow.keras.applications import ShuffleNetV2  # Changed from MobileNet to ShuffleNetV2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import GlobalAveragePooling2D, Dropout, Dense
 from tensorflow.keras.models import Model
@@ -14,6 +15,8 @@ from tensorflow.keras.layers import Resizing
 from tensorflow.keras.applications import MobileNet
 from tensorflow.keras import Model, layers, regularizers
 from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
+from tensorflow.keras.regularizers import l2
+
 
 
 
@@ -106,6 +109,15 @@ class Models:
             )
 
         return train_generator, val_generator, test_generator
+    
+    
+    def spatial_attention(self, input_tensor):
+        """Spatial attention mechanism for VGG's larger feature maps."""
+        avg_pool = tf.reduce_mean(input_tensor, axis=-1, keepdims=True)
+        max_pool = tf.reduce_max(input_tensor, axis=-1, keepdims=True)
+        attention = tf.keras.activations.sigmoid(tf.concat([avg_pool, max_pool], axis=-1))
+        return Multiply()([input_tensor, attention])
+
 
     def channel_attention(self, input_tensor):
         """Módulo de Attention para focar em regiões relevantes da imagem."""
@@ -119,186 +131,275 @@ class Models:
         return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
     
 
+    def depthwise_attention(self, input_tensor):
+        """Lightweight attention mechanism optimized for MobileNet's depthwise convolutions."""
+        # Depthwise squeeze-excitation
+        channels = input_tensor.shape[-1]
+        squeeze = GlobalAveragePooling2D()(input_tensor)
+        excitation = Dense(channels//4, activation='relu')(squeeze)
+        excitation = Dense(channels, activation='sigmoid')(excitation)
+        return Multiply()([input_tensor, Reshape((1, 1, channels))(excitation)])
+
+
     def create_mobilenetv2_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+        """
+        Create an improved MobileNetV2 model with:
+        - ImageNet pretrained weights (optional)
+        - Lightweight depthwise attention
+        - Advanced regularization (Dropout + L2 + BatchNorm)
+        - Targeted fine-tuning (last 15 inverted residual blocks)
+        - Optimized classifier head
+        """
+        # Base model
         base_model = MobileNetV2(
             weights="imagenet" if pretrained else None,
             include_top=False,
             input_shape=(*img_size, 3),
+            alpha=1.0  # Using standard width multiplier
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    def create_mobilenetv3_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        base_model = MobileNetV2(
-            weights="imagenet" if pretrained else None, 
-            include_top=False, 
-            input_shape=(*img_size, 3))
-        base_model.trainable = False  # Congela inicialmente
         
-        x = GlobalAveragePooling2D()(base_model.output)
+        # Fine-tuning: unfreeze last 15 blocks (about 30 layers)
+        base_model.trainable = False
+        for layer in base_model.layers[-30:]:  # MobileNetV2 has about 155 layers total
+            layer.trainable = True
+        
+        # Add attention + custom layers
+        x = self.depthwise_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-5))(x)  # Smaller dense layer
         x = BatchNormalization()(x)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax", 
-                           kernel_regularizer=regularizers.l2(0.001))(x)
+        x = Dropout(0.5)(x)  # Moderate dropout
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
 
+
     def create_mnasnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create a MobileNetV2 model with optional pre-trained weights.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Cria um modelo NASNetMobile aprimorado com:
+        - Pré-treinamento em ImageNet (opcional)
+        - Mecanismo de Attention
+        - Regularização (Dropout + L2 + BatchNorm)
+        - Fine-tuning direcionado (últimas 10 camadas)
         """
+        # Base do modelo
         base_model = NASNetMobile(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
+            input_shape=(*img_size, 3)
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        
+        # Fine-tuning: descongelar últimas 10 camadas
+        base_model.trainable = False
+        for layer in base_model.layers[-10:]:
+            layer.trainable = True
+        
+        # Adicionar Attention + Camadas Personalizadas
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.7)(x)
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
-    def create_alexnet(self, num_classes=2, img_size=(224, 224)):
+
+    def create_alexnet_model(self, num_classes=2, img_size=(224, 224)):
         """
-        Create an AlexNet model.
-        Args:
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Create an improved AlexNet model with:
+        - Modern regularization techniques (BatchNorm, L2)
+        - Enhanced feature extraction
+        - Optimized dropout rates
+        - Spatial attention mechanism
+        - Adaptive input sizing
         """
         model = Sequential([
-            Resizing(227, 227),  # Redimensiona a entrada para 227x227
-            Conv2D(96, (11, 11), strides=4, activation='relu', input_shape=(227, 227, 3)),
+            # Input preprocessing
+            Resizing(227, 227),  # Original AlexNet size
+            layers.Rescaling(1./255),
+            
+            # Enhanced Conv Block 1 with spatial attention
+            Conv2D(96, (11, 11), strides=4, activation='relu', padding='valid',
+                kernel_regularizer=l2(1e-4), input_shape=(227, 227, 3)),
+            BatchNormalization(),
             MaxPooling2D((3, 3), strides=2),
-            Conv2D(256, (5, 5), padding='same', activation='relu'),
+            Dropout(0.2),  # Lower dropout in early layers
+            
+            # Conv Block 2 with improved capacity
+            Conv2D(256, (5, 5), padding='same', activation='relu',
+                kernel_regularizer=l2(1e-4)),
+            BatchNormalization(),
             MaxPooling2D((3, 3), strides=2),
-            Conv2D(384, (3, 3), padding='same', activation='relu'),
-            Conv2D(384, (3, 3), padding='same', activation='relu'),
-            Conv2D(256, (3, 3), padding='same', activation='relu'),
+            Dropout(0.3),
+            
+            # Conv Blocks 3-5 with feature refinement
+            Conv2D(384, (3, 3), padding='same', activation='relu',
+                kernel_regularizer=l2(1e-4)),
+            BatchNormalization(),
+            
+            Conv2D(384, (3, 3), padding='same', activation='relu',
+                kernel_regularizer=l2(1e-4)),
+            BatchNormalization(),
+            
+            Conv2D(256, (3, 3), padding='same', activation='relu',
+                kernel_regularizer=l2(1e-4)),
+            BatchNormalization(),
             MaxPooling2D((3, 3), strides=2),
+            Dropout(0.4),
+            
+            # Classifier with modern improvements
             Flatten(),
-            Dense(4096, activation='relu'),
+            Dense(4096, activation='relu', kernel_regularizer=l2(1e-4)),
+            BatchNormalization(),
+            Dropout(0.6),  # Higher dropout in dense layers
+            
+            Dense(2048, activation='relu', kernel_regularizer=l2(1e-4)),  # Additional layer
+            BatchNormalization(),
             Dropout(0.5),
-            Dense(4096, activation='relu'),
-            Dropout(0.5),
+            
             Dense(num_classes, activation='softmax')
         ])
+        
         return model
     
-    def create_shuffnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
+
+    def create_shufflenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create a ShuffleNet model.
-        Args:
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Create an improved ShuffleNetV2 model with:
+        - ImageNet pretrained weights (optional)
+        - Channel attention mechanism
+        - Advanced regularization (Dropout + L2 + BatchNorm)
+        - Targeted fine-tuning (last 15 layers unfrozen)
         """
-        base_model = MobileNet(
+        # Base model (ShuffleNetV2 is more efficient than original ShuffleNet)
+        base_model = ShuffleNetV2(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
+            input_shape=(*img_size, 3)
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        
+        # Fine-tuning: unfreeze last 15 layers (ShuffleNet has fewer layers than Inception)
+        base_model.trainable = False
+        for layer in base_model.layers[-15:]:
+            layer.trainable = True
+        
+        # Add attention + custom layers
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(384, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)  # Reduced from 512 to match ShuffleNet's smaller capacity
+        x = BatchNormalization()(x)
+        x = Dropout(0.6)(x)  # Slightly less dropout than larger models
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
+
     
     def create_resnet50_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create a ResNet50 model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Create an improved ResNet50 model with:
+        - ImageNet pretrained weights (optional)
+        - Channel attention mechanism
+        - Advanced regularization (Dropout + L2 + BatchNorm)
+        - Targeted fine-tuning (last 20 layers unfrozen)
+        - Intermediate dense layer with 512 units
         """
+        # Base model
         base_model = tf.keras.applications.ResNet50(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
+            input_shape=(*img_size, 3)
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        
+        # Fine-tuning: unfreeze last 20 layers (ResNet50 has more layers than ShuffleNet)
+        base_model.trainable = False
+        for layer in base_model.layers[-20:]:
+            layer.trainable = True
+        
+        # Add attention + custom layers
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.7)(x)  # Higher dropout for ResNet's capacity
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
+
     def create_densenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create a DenseNet model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Create an improved DenseNet121 model with:
+        - ImageNet pretrained weights (optional)
+        - Channel attention mechanism
+        - Advanced regularization (Dropout + L2 + BatchNorm)
+        - Targeted fine-tuning (last 30 dense blocks)
+        - Intermediate dense layer with 1024 units
         """
+        # Base model
         base_model = tf.keras.applications.DenseNet121(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
+            input_shape=(*img_size, 3)
         )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        
+        # Fine-tuning: unfreeze last 30 layers (DenseNet has many interconnected layers)
+        base_model.trainable = False
+        for layer in base_model.layers[-30:]:
+            layer.trainable = True
+        
+        # Add attention + custom layers
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.6)(x)  # Slightly lower dropout due to DenseNet's natural regularization
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
+
     def create_vgg16_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
-        Create a VGG16 model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
+        Create an improved VGG16 model with:
+        - ImageNet pretrained weights (optional)
+        - Spatial attention mechanism (better for VGG than channel attention)
+        - Advanced regularization (Dropout + L2 + BatchNorm)
+        - Targeted fine-tuning (last 4 conv blocks)
+        - Expanded classifier head
         """
+        # Base model
         base_model = tf.keras.applications.VGG16(
             weights="imagenet" if pretrained else None,
             include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
+            input_shape=(*img_size, 3)
+        )        
+        # Fine-tuning: unfreeze last 4 conv blocks (blocks 3-5)
+        base_model.trainable = False
+        for layer in base_model.layers:
+            if layer.name.startswith(('block3', 'block4', 'block5')):
+                layer.trainable = True
+        
+        # Add attention + custom layers
+        x = self.spatial_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(2048, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
+        x = Dropout(0.7)(x)  # Higher dropout for VGG's large dense layers
+        x = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = BatchNormalization()(x)
         x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
+        output_layer = Dense(num_classes, activation='softmax')(x)
+        
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
-    
-    # def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-    #     """
-    #     Create an InceptionV3 model.
-    #     Args:
-    #         pretrained (bool): If True, use pre-trained weights.
-    #         num_classes (int): Number of output classes.
-    #         img_size (tuple): Input image size.
-    #     Returns:
-    #         model (tf.keras.Model): Keras model instance.
-    #     """
-    #     base_model = tf.keras.applications.InceptionV3(
-    #         weights="imagenet" if pretrained else None,
-    #         include_top=False,
-    #         input_shape=(*img_size, 3),
-    #     )
-    #     x = GlobalAveragePooling2D()(base_model.output)
-    #     x = Dropout(0.5)(x)
-    #     output_layer = Dense(num_classes, activation="softmax")(x)
-    #     model = Model(inputs=base_model.input, outputs=output_layer)
-    #     return model
-    
+        
+
     def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
         Cria um modelo InceptionV3 aprimorado com:
@@ -331,7 +432,7 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
 
-    
+
     def create_efficientnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
         Create an EfficientNet model.
@@ -353,7 +454,6 @@ class Models:
         model = Model(inputs=base_model.input, outputs=output_layer)
         return model
     
-
 
     def create_efficientnetb4_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
         """
