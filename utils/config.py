@@ -32,7 +32,7 @@ def get_callbacks(model_name, checkpoint_path, checkpoint_all_path, delta, pacie
                                        verbose=1)
 
         # Salva apenas o melhor modelo escolhido pelo early stopping
-        checkpoint = ModelCheckpoint(checkpoint_path + f"{model_name}_checkpoint.keras", 
+        checkpoint = ModelCheckpoint(checkpoint_path + f"{model_name}" + "_epoch_{epoch:02d}.keras", 
                                           save_weights_only=False,
                                           save_best_only=True, 
                                           monitor='val_loss', 
