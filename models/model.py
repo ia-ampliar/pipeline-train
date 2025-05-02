@@ -2,7 +2,6 @@
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.applications import NASNetMobile
-from tensorflow.keras.applications import ShuffleNetV2  # Changed from MobileNet to ShuffleNetV2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import GlobalAveragePooling2D, Dropout, Dense
 from tensorflow.keras.models import Model
@@ -274,8 +273,8 @@ class Models:
         - Advanced regularization (Dropout + L2 + BatchNorm)
         - Targeted fine-tuning (last 15 layers unfrozen)
         """
-        # Base model (ShuffleNetV2 is more efficient than original ShuffleNet)
-        base_model = ShuffleNetV2(
+        # Base model (MobileNetV2 is more efficient than original ShuffleNet)
+        base_model = MobileNetV2(
             weights="imagenet" if pretrained else None,
             include_top=False,
             input_shape=(*img_size, 3)
