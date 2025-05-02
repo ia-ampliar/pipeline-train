@@ -375,7 +375,7 @@ def main():
                 print(50*"=")
             time.sleep(2)
             # Avaliação do modelo
-            evaluate_model(test_generator, MODEL_NAME, BASE_PATH)
+            evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=True)
         elif choice == 3:
             model_options, model_choice = models_available()
             if model_choice == 10:
