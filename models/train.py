@@ -13,6 +13,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoa
 import pickle
 import os
 
+
 def train_model(model, model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
                 tensorboard_callback, train_generator, val_generator, 
@@ -65,7 +66,14 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     history_df = pd.DataFrame(history.history)
     history_df.insert(0, 'epoch', range(initial_epoch + 1, initial_epoch + 1 + len(history_df)))
     history_df.insert(1, 'model_name', model_name)
-    
+
+    # Adiciona coluna 'best_epoch' com marcação booleana
+    if hasattr(early_stopping, 'best_epoch'):
+        best_epoch_absolute = early_stopping.stopped_epoch - early_stopping.patience
+        history_df['is_best_epoch'] = history_df['epoch'] == (best_epoch_absolute + 1)  # +1 para alinhar com index humano
+    else:
+        history_df['is_best_epoch'] = False
+
     # Salva em CSV com informações adicionais
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_filename = BASE_DIR + f'{model_name}_training_history_{timestamp}.csv'
