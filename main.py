@@ -88,8 +88,14 @@ def get_user_choice():
 def call_model(model_name):
         """Chama o modelo baseado no nome"""
         if model_name == "alexnet":
-            model = model_instance.create_alexnet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
-            model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+            model = model_instance.create_alexnet_model(num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+            loss='categorical_crossentropy',
+            metrics=['accuracy',
+                    tf.keras.metrics.AUC(name='auc'),
+                    tf.keras.metrics.Precision(name='precision')]
+                )       
             model.summary()
             return model
         
