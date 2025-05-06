@@ -350,7 +350,7 @@ def main():
 
         if choice == 1:
             model_options, model_choice = models_available()
-            if model_choice == 10:
+            if model_choice == 11:
                 continue
             
             if not model_choice in model_options:
@@ -368,7 +368,7 @@ def main():
             
         elif choice == 2:
             model_options, model_choice = models_available()
-            if model_choice == 10:
+            if model_choice == 11:
                 continue
             
             if not model_choice in model_options:
@@ -384,7 +384,7 @@ def main():
             evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=True)
         elif choice == 3:
             model_options, model_choice = models_available()
-            if model_choice == 10:
+            if model_choice == 11:
                 continue
             
             if not model_choice in model_options:

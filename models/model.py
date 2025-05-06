@@ -17,6 +17,26 @@ from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
 from tensorflow.keras.regularizers import l2
 
 
+class SpatialAttentionLayer(tf.keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(SpatialAttentionLayer, self).__init__(**kwargs)
+        
+    def build(self, input_shape):
+        self.conv = tf.keras.layers.Conv2D(1, (7, 7), padding='same', activation='sigmoid')
+        super(SpatialAttentionLayer, self).build(input_shape)
+        
+    def call(self, inputs):
+        # Average pooling along the channel axis
+        avg_pool = tf.keras.backend.mean(inputs, axis=-1, keepdims=True)
+        # Max pooling along the channel axis
+        max_pool = tf.keras.backend.max(inputs, axis=-1, keepdims=True)
+        # Concatenate
+        concat = tf.keras.layers.Concatenate(axis=-1)([avg_pool, max_pool])
+        # Apply conv layer
+        attention = self.conv(concat)
+        # Multiply with original input
+        return tf.keras.layers.Multiply()([inputs, attention])
+    
 
 
 class Models:
@@ -385,7 +405,7 @@ class Models:
                 layer.trainable = True
         
         # Add attention + custom layers
-        x = self.spatial_attention(base_model.output)
+        x = SpatialAttentionLayer()(base_model.output)  # Using the custom layer here
         x = GlobalAveragePooling2D()(x)
         x = Dense(2048, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
