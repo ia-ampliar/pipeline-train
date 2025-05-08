@@ -12,6 +12,11 @@ from models.train import train_model
 from utils.visualize import plot_training
 from utils.evaluate import evaluate_model
 
+from utils.ensamble import (
+    load_keras_models, predict_dataset, majority_vote,
+    plot_roc_curves, compute_metrics, plot_conf_matrix
+)
+
 from models.model import Models
 
 
@@ -23,8 +28,8 @@ NUM_CLASSES = 2
 PACIENTE = 7
 DELTA = 0.001
 
-BASE_PATH = "/run/user/1000/gvfs/smb-share:server=192.168.1.64,share=datasets/"
-PATH_IMGS = BASE_PATH + 'Dataset-splited'
+BASE_PATH = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/"
+PATH_IMGS = BASE_PATH + 'splited'
 
 WEIGHT_PATH = BASE_PATH + "weights/"
 if not os.path.exists(WEIGHT_PATH):
@@ -41,6 +46,13 @@ if not os.path.exists(CHECKPOINT_ALL_PATH):
 MODEL_PATH = BASE_PATH + "models/"
 if not os.path.exists(MODEL_PATH):
     os.makedirs(MODEL_PATH)
+
+TEST_DIR = '/mnt/efs-tcga/HEAL_Workspace/macenko_datas/splited/test'
+PROJECT_ROOT = '/root/pipeline-train'
+
+METRICS_PATH = os.path.join(PROJECT_ROOT, 'metrics')
+os.makedirs(METRICS_PATH, exist_ok=True)
+
 
 
 
@@ -70,18 +82,19 @@ def show_menu():
     print("1. Treinar novo modelo")
     print("2. Avaliar modelo existente")
     print("3. Continuar treinamento do modelo")
-    print("4. Sair")
+    print("4. Criar modelo ensemble")
+    print("5. Sair")
     print("\n" + "="*50)
 
 def get_user_choice():
     """Obtém a escolha do usuário"""
     while True:
         try:
-            choice = int(input("\nDigite sua opção (1-4): "))
+            choice = int(input("\nDigite sua opção (1-5): "))
             if 1 <= choice <= 4:
                 return choice
             else:
-                print("Opção inválida. Por favor, digite um número entre 1 e 4.")
+                print("Opção inválida. Por favor, digite um número entre 1 e 5.")
         except ValueError:
             print("Entrada inválida. Por favor, digite um número.")
 
@@ -160,6 +173,7 @@ def call_model(model_name):
         
         else:
             raise ValueError("Modelo não reconhecido.")
+
 
 def train_new_model(model_instance, MODEL_NAME, LOG_DIR):
     """Executa o treinamento de um novo modelo"""
@@ -400,6 +414,55 @@ def main():
             LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")            
             continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, validation_generator)
         elif choice == 4:
+            model_paths = [
+                BASE_PATH + "weights/checkpoint/" + "densenet_epoch_04.keras",
+                BASE_PATH + "weights/checkpoint/" + "efficientnetv2_epoch_11.keras",
+                BASE_PATH + "weights/checkpoint/" + "inception_epoch_02.keras"
+            ]
+
+            model_names = [os.path.basename(p).replace(".keras", "") for p in model_paths]
+
+            print("➡️     Carregando modelos...")
+            models = load_keras_models(model_paths)
+
+            print("➡️     Carregando imagens de teste...")
+            test_ds = tf.keras.utils.image_dataset_from_directory(
+                TEST_DIR,
+                labels='inferred',
+                label_mode='int',
+                image_size=IMG_SIZE,
+                batch_size=BATCH_SIZE,
+                shuffle=False
+            )
+            class_names = test_ds.class_names
+
+            normalization_layer = tf.keras.layers.Rescaling(1./255)
+            test_ds = test_ds.map(lambda x, y: (normalization_layer(x), y))
+
+            print("➡️     Realizando predições...")
+            y_true, preds_list = predict_dataset(models, test_ds)
+
+            print("➡️     Votando entre modelos...")
+            ensemble_preds = majority_vote(preds_list)
+
+            print("➡️     Plotando curvas ROC e calculando métricas...")
+            individual_metrics = plot_roc_curves(y_true, preds_list, model_names, METRICS_PATH)
+
+            print("➡️     Plotando matriz de confusão...")
+            plot_conf_matrix(y_true, ensemble_preds, class_names, METRICS_PATH)
+
+            print("➡️     Salvando métricas no CSV...")
+            ensemble_metrics = compute_metrics(y_true, ensemble_preds)
+            ensemble_metrics['model'] = 'Majority_Vote'
+            ensemble_metrics['auc'] = np.nan  # não aplicável diretamente
+
+            full_metrics = pd.DataFrame(individual_metrics + [ensemble_metrics])
+            full_metrics.to_csv(os.path.join(METRICS_PATH, 'model_metrics_log.csv'), index=False)
+
+            print("✅     Concluído! Arquivos salvos em:", METRICS_PATH)
+
+    
+        elif choice == 5:
             print("\nSaindo do sistema...")
             sys.exit()
 

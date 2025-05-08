@@ -1,149 +1,108 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from collections import Counter
-from sklearn.metrics import classification_report, confusion_matrix
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import pandas as pd
+from tensorflow.keras.models import load_model
+from sklearn.metrics import (
+    roc_curve, auc, accuracy_score, precision_score,
+    recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
+)
 
-from models.model import Models
+
+# === FUNÇÕES ===
+def load_keras_models(paths):
+    return [tf.keras.models.load_model(p) for p in paths]
+
+def predict_dataset(models, dataset):
+    y_true = []
+    preds_list = [[] for _ in models]
+
+    for x_batch, y_batch in dataset:
+        y_true.extend(y_batch.numpy())
+        for i, model in enumerate(models):
+            preds = model.predict(x_batch, verbose=0)
+            preds_list[i].extend(preds)
+
+    y_true = np.array(y_true)
+    preds_list = [np.array(p) for p in preds_list]
+    return y_true, preds_list
+
+def majority_vote(preds_list):
+    class_preds = [np.argmax(p, axis=1) for p in preds_list]
+    stacked_preds = np.stack(class_preds)
+    voted = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=stacked_preds)
+    return voted
+
+def plot_roc_curves(y_true, preds_list, names, save_path):
+    plt.figure(figsize=(10, 8))
+    metrics = []
+
+    for i, preds in enumerate(preds_list):
+        fpr, tpr, _ = roc_curve(y_true, preds[:, 1])
+        roc_auc = auc(fpr, tpr)
+
+        # Nome-base simplificado para salvar arquivos
+        model_base = names[i].split('_epoch')[0] if '_epoch' in names[i] else names[i].split('_')[0]
+
+        # Salvar arquivos .npy
+        np.save(os.path.join(save_path, f'{model_base}_fpr.npy'), fpr)
+        np.save(os.path.join(save_path, f'{model_base}_tpr.npy'), tpr)
+        np.save(os.path.join(save_path, f'{model_base}_auc.npy'), np.array([roc_auc]))
+
+        plt.plot(fpr, tpr, label=f"{model_base} (AUC = {roc_auc:.2f})")
+
+        y_pred = np.argmax(preds, axis=1)
+        metrics.append({
+            'model': model_base,
+            'accuracy': accuracy_score(y_true, y_pred),
+            'precision': precision_score(y_true, y_pred),
+            'recall': recall_score(y_true, y_pred),
+            'f1_score': f1_score(y_true, y_pred),
+            'auc': roc_auc
+        })
+
+    # Ensemble ROC
+    avg_preds = np.mean(np.stack(preds_list), axis=0)
+    fpr_ens, tpr_ens, _ = roc_curve(y_true, avg_preds[:, 1])
+    auc_ens = auc(fpr_ens, tpr_ens)
+
+    # Salvar ensemble .npy
+    path_npy = os.path.join(save_path, 'npy')
+    os.makedirs(path_npy, exist_ok=True)
+    np.save(os.path.join(path_npy, 'ensemble_fpr.npy'), fpr_ens)
+    np.save(os.path.join(path_npy, 'ensemble_tpr.npy'), tpr_ens)
+    np.save(os.path.join(path_npy, 'ensemble_auc.npy'), np.array([auc_ens]))
+
+    plt.plot(fpr_ens, tpr_ens, lw=3, linestyle="--", color="black", label=f"ensemble (AUC = {auc_ens:.2f})")
+
+    plt.plot([0, 1], [0, 1], linestyle="--", color="gray")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Curvas ROC - Todos os Modelos")
+    plt.legend(loc="lower right")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, 'roc_curves.png'))
+    plt.close()
+
+    return metrics
 
 
+def plot_conf_matrix(y_true, y_pred, labels, save_path):
+    cm = confusion_matrix(y_true, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp.plot(cmap=plt.cm.Blues)
+    plt.title("Matriz de Confusão - Modelo Ensemble (Voto Majoritário)")
+    plt.grid(False)
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, 'confusion_matrix.png'))
+    plt.close()
 
-
-class ModelEnsemble:
-    def __init__(self, model_paths):
-        """
-        Inicializa o ensemble com os caminhos dos modelos treinados
-        :param model_paths: Lista de dicionários com informações dos modelos
-        Exemplo: [{'name': 'EfficientNetB4', 'path': 'path/to/model.h5', 'type': 'keras'},
-                 {'name': 'ResNet50', 'path': 'path/to/model.keras', 'type': 'keras'}]
-        """
-        self.models = []
-        self.model_names = []
-        self.model_instance = Models()
-
-        
-        for model_info in model_paths:
-            print(f"Carregando modelo {model_info['name']}...")
-            if model_info['type'] == 'keras':
-                model = load_model(model_info['path'])
-            elif model_info['type'] == 'weights':
-                model = self.build_model_architecture(model_info['name'])
-                model.load_weights(model_info['path'])
-            else:
-                raise ValueError("Tipo de modelo desconhecido. Use 'keras' ou 'weights'")
-                
-            self.models.append(model)
-            self.model_names.append(model_info['name'])
-        
-        print("Ensemble criado com sucesso com os seguintes modelos:")
-        print("\n".join(self.model_names))
-    
-    def build_model_architecture(self, model_name):
-        """Constroi a arquitetura do modelo se carregando apenas os pesos"""
-        if model_name == 'efficientnetv2':
-            return self.model_instance.create_efficientnetb4_model()
-        elif model_name == 'resnet50':
-            return self.model_instance.create_resnet50_model()
-        elif model_name == 'densenet':
-            return self.model_instance.create_densenet_model()
-        elif model_name == 'vgg16':
-            return self.model_instance.create_vgg16_model()
-        elif model_name == 'mobilenetv2':
-            return self.model_instance.create_mobilenetv2_model()
-        elif model_name == 'alexnet':
-            return self.model_instance.create_alexnet_model()
-        elif model_name == 'inception':
-            return self.model_instance.create_inception_model()
-        elif model_name == 'shufflenet':
-            return self.model_instance.create_shufflenet_model()
-        elif model_name == 'mnasnet':
-            return self.model_instance.create_mnasnet_model()
-        else:
-            raise ValueError(f"Arquitetura desconhecida: {model_name}")
-    
-    def predict(self, x):
-        """
-        Faz predições usando votação por maioria
-        :param x: Dados de entrada (batch de imagens)
-        :return: Predições finais e matriz de votação
-        """
-        all_predictions = []
-        
-        # Coleta predições de todos os modelos
-        for model in self.models:
-            preds = model.predict(x, verbose=0)
-            classes = np.argmax(preds, axis=1)  # Converte probabilidades em classes
-            all_predictions.append(classes)
-        
-        # Transpõe para ter predições por amostra
-        sample_predictions = np.array(all_predictions).T
-        
-        # Aplica votação por maioria
-        final_predictions = []
-        voting_matrix = []
-        
-        for sample in sample_predictions:
-            counts = Counter(sample)
-            majority_vote = counts.most_common(1)[0][0]
-            final_predictions.append(majority_vote)
-            
-            # Registra como cada modelo votou
-            voting_matrix.append([(model_name, int(pred)) 
-                                for model_name, pred in zip(self.model_names, sample)])
-        
-        return np.array(final_predictions), voting_matrix
-    
-    def evaluate_ensemble(self, test_data, test_labels):
-        """
-        Avalia o desempenho do ensemble no conjunto de teste
-        :return: Métricas de desempenho
-        """
-        final_predictions, _ = self.predict(test_data)
-        
-        accuracy = np.mean(final_predictions == test_labels)
-        report = classification_report(test_labels, final_predictions, output_dict=True)
-        cm = confusion_matrix(test_labels, final_predictions)
-        
-        return {
-            'accuracy': accuracy,
-            'classification_report': report,
-            'confusion_matrix': cm
-        }
-
-# Exemplo de uso:
-if __name__ == "__main__":
-    BASE_PATH  = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/weights/checkpoint/"
-    # 1. Definir caminhos dos modelos treinados
-    MODEL_PATHS = [
-        {'name': 'EfficientNetV2',  'path': BASE_PATH + 'efficientnetv2_epoch_11.keras',    'type': 'keras'},
-        {'name': 'ResNet50',        'path': BASE_PATH + 'resnet50_epoch_07.keras',          'type': 'keras'},
-        {'name': 'DenseNet',        'path': BASE_PATH + 'densenet_epoch_04.keras',          'type': 'keras'},
-        {'name': 'MobileNetV2',     'path': BASE_PATH + 'mobileNet_checkpoint.keras',       'type': 'keras'},
-        {'name': 'AlexNet',         'path': BASE_PATH + 'alexnet_epoch_05.keras',           'type': 'keras'},
-        {'name': 'InceptionNet',    'path': BASE_PATH + 'inception_checkpoint.keras',       'type': 'keras'},
-        {'name': 'MnasNet',         'path': BASE_PATH + 'mnasNet_checkpoint.keras',         'type': 'keras'},
-        {'name': 'ShuffleNet',      'path': BASE_PATH + 'shufflenet_epoch_07.keras',        'type': 'keras'},
-        {'name': 'VggNet',          'path': BASE_PATH + 'vgg16_epoch_02.keras',             'type': 'keras'},
-    ]
-    
-    # 2. Carregar o ensemble
-    ensemble = ModelEnsemble(MODEL_PATHS)
-    
-    # 3. Exemplo de predição (substitua com seus dados reais)
-    test_images = input("Insira o caminho para suas imagens de teste: ")
-    test_images = np.load(test_images)  # Carregue suas imagens de teste aqui
-
-    predictions, voting_matrix = ensemble.predict(test_images)
-    
-    print("\nPredições do ensemble:")
-    for i, (pred, votes) in enumerate(zip(predictions, voting_matrix)):
-        print(f"\nAmostra {i+1}:")
-        print(f"Predição final: {pred}")
-        print("Votos individuais:")
-        for model, vote in votes:
-            print(f"- {model}: {vote}")
-    
-    # 4. Avaliação completa (se tiver labels)
-    # metrics = ensemble.evaluate_ensemble(test_images, test_labels)
-    # print(f"\nAcurácia do ensemble: {metrics['accuracy']:.2%}")
+def compute_metrics(y_true, y_pred):
+    return {
+        'accuracy': accuracy_score(y_true, y_pred),
+        'precision': precision_score(y_true, y_pred),
+        'recall': recall_score(y_true, y_pred),
+        'f1_score': f1_score(y_true, y_pred)
+    }
