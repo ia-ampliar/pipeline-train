@@ -142,6 +142,8 @@ dependencies:
   - zstandard=0.23.0=py310ha75aee5_1
   - zstd=1.5.6=hc292b87_0
   - pip:
+      - pandas==2.2.3
+      - matplotlib==3.10.1
       - pillow==11.2.1
       - pyparsing==3.2.3
 prefix: /home/rsb6/anaconda3/envs/train-pipeline-gpu
