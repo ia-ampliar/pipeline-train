@@ -469,7 +469,7 @@ def main():
             ensemble_preds = majority_vote(preds_list)
 
             print("➡️     Plotando curvas ROC e calculando métricas...")
-            individual_metrics = plot_roc_curves(y_true, preds_list, model_names, METRICS_PATH)
+            individual_metrics = plot_roc_curves(y_true, preds_list, model_names, METRICS_PATH, multiclass=True)
 
             print("➡️     Plotando matriz de confusão...")
             plot_conf_matrix(y_true, ensemble_preds, class_names, METRICS_PATH)
