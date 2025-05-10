@@ -15,8 +15,10 @@ from tensorflow.keras.applications import MobileNet
 from tensorflow.keras import Model, layers, regularizers
 from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
 from tensorflow.keras.regularizers import l2
+from keras.saving import register_keras_serializable
 
 
+@register_keras_serializable()
 class SpatialAttentionLayer(tf.keras.layers.Layer):
     def __init__(self, **kwargs):
         super(SpatialAttentionLayer, self).__init__(**kwargs)

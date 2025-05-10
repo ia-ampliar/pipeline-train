@@ -45,10 +45,14 @@ def plot_roc_curves(y_true, preds_list, names, save_path):
         # Nome-base simplificado para salvar arquivos
         model_base = names[i].split('_epoch')[0] if '_epoch' in names[i] else names[i].split('_')[0]
 
+
         # Salvar arquivos .npy
-        np.save(os.path.join(save_path, f'{model_base}_fpr.npy'), fpr)
-        np.save(os.path.join(save_path, f'{model_base}_tpr.npy'), tpr)
-        np.save(os.path.join(save_path, f'{model_base}_auc.npy'), np.array([roc_auc]))
+        path_npy = os.path.join(save_path, 'npy')
+        os.makedirs(path_npy, exist_ok=True)
+
+        np.save(os.path.join(path_npy, f'{model_base}_fpr.npy'), fpr)
+        np.save(os.path.join(path_npy, f'{model_base}_tpr.npy'), tpr)
+        np.save(os.path.join(path_npy, f'{model_base}_auc.npy'), np.array([roc_auc]))
 
         plt.plot(fpr, tpr, label=f"{model_base} (AUC = {roc_auc:.2f})")
 
@@ -66,9 +70,6 @@ def plot_roc_curves(y_true, preds_list, names, save_path):
     avg_preds = np.mean(np.stack(preds_list), axis=0)
     fpr_ens, tpr_ens, _ = roc_curve(y_true, avg_preds[:, 1])
     auc_ens = auc(fpr_ens, tpr_ens)
-
-    # Salvar ensemble .npy
-    path_npy = os.path.join(save_path, 'npy')
     os.makedirs(path_npy, exist_ok=True)
     np.save(os.path.join(path_npy, 'ensemble_fpr.npy'), fpr_ens)
     np.save(os.path.join(path_npy, 'ensemble_tpr.npy'), tpr_ens)
