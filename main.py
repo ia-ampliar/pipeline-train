@@ -1,6 +1,8 @@
 import sys
 from tensorflow.keras.models import load_model
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import datetime
 import os
@@ -68,9 +70,11 @@ print("          Dataset carregado com sucesso!")
 print(50*"=")
 
 
+
 def clear_screen():
     """Limpa a tela do console"""
     os.system('cls' if os.name == 'nt' else 'clear')
+
 
 def show_menu():
     """Exibe o menu principal"""
@@ -413,12 +417,31 @@ def main():
     
             LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")            
             continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, validation_generator)
+
         elif choice == 4:
-            model_paths = [
-                BASE_PATH + "weights/checkpoint/" + "densenet_epoch_04.keras",
-                BASE_PATH + "weights/checkpoint/" + "efficientnetv2_epoch_11.keras",
-                BASE_PATH + "weights/checkpoint/" + "inception_epoch_02.keras"
-            ]
+
+            BASE_PATH_MODEL = input("Digite o caminho base dos modelos: ")
+            if not BASE_PATH_MODEL.endswith("/"):
+                BASE_PATH_MODEL += "/"
+
+            model_paths = []
+
+            while True:
+                path = input("Digite o caminho do modelo (ou 'sair' para terminar): ")
+                
+                if path.lower() == 'sair':
+                    break
+                
+                # Você pode adicionar validação do caminho aqui se necessário
+                model_paths.append(BASE_PATH_MODEL + path)
+                
+                continuar = input("Deseja adicionar outro modelo? (s/n): ")
+                if continuar.lower() != 's':
+                    break
+
+            print("\nCaminhos dos modelos carregados:")
+            for path in model_paths:
+                print(path)
 
             model_names = [os.path.basename(p).replace(".keras", "") for p in model_paths]
 
