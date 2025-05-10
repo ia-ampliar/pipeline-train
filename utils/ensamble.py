@@ -6,13 +6,40 @@ import pandas as pd
 from tensorflow.keras.models import load_model
 from sklearn.metrics import (
     roc_curve, auc, accuracy_score, precision_score,
-    recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
+    recall_score, f1_score,
+      confusion_matrix, ConfusionMatrixDisplay
 )
+from keras.saving import register_keras_serializable
+from models.model import SpatialAttentionLayer
+
 
 
 # === FUNÇÕES ===
 def load_keras_models(paths):
-    return [tf.keras.models.load_model(p) for p in paths]
+    loaded_models = []
+    for p in paths:
+        try:
+            # Primeira tentativa: carrega sem custom_objects
+            model = tf.keras.models.load_model(p)
+            loaded_models.append(model)
+        except TypeError as e:
+            if "SpatialAttentionLayer" in str(e):
+                # Segunda tentativa: carrega com custom_objects
+                try:
+                    model = tf.keras.models.load_model(
+                        p,
+                        custom_objects={'SpatialAttentionLayer': SpatialAttentionLayer}
+                    )
+                    loaded_models.append(model)
+                except Exception as e:
+                    print(f"❌ Falha ao carregar {p} mesmo com custom_objects: {str(e)}")
+            else:
+                print(f"❌ Erro ao carregar {p}: {str(e)}")
+        except Exception as e:
+            print(f"❌ Erro inesperado ao carregar {p}: {str(e)}")
+    return loaded_models
+
+
 
 def predict_dataset(models, dataset):
     y_true = []
