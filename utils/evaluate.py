@@ -44,7 +44,7 @@ def evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=False):
     plot_confusion_matrix(y_true, y_pred, class_labels, MODEL_NAME)
     
     # Plotar curva ROC
-    plot_roc_curve(y_true, y_pred_probs, class_labels, MODEL_NAME, multiclass=False)
+    plot_roc_curve(y_true, y_pred_probs, class_labels, MODEL_NAME, multiclass=True)
 
     input("\nPressione Enter para voltar ao menu principal...")
 
