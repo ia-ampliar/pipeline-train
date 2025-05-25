@@ -1,65 +1,48 @@
-import os
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
-import pandas as pd
-from tensorflow.keras.models import load_model
 from sklearn.metrics import (
     roc_curve, auc, accuracy_score, precision_score,
-    recall_score, f1_score,
-      confusion_matrix, ConfusionMatrixDisplay
+    recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 )
-from keras.saving import register_keras_serializable
-from models.model import SpatialAttentionLayer
+import os
 
 
-
-# === FUNÇÕES ===
-def load_keras_models(paths):
-    loaded_models = []
-    for p in paths:
-        try:
-            # Primeira tentativa: carrega sem custom_objects
-            model = tf.keras.models.load_model(p)
-            loaded_models.append(model)
-        except TypeError as e:
-            if "SpatialAttentionLayer" in str(e):
-                # Segunda tentativa: carrega com custom_objects
-                try:
-                    model = tf.keras.models.load_model(
-                        p,
-                        custom_objects={'SpatialAttentionLayer': SpatialAttentionLayer}
-                    )
-                    loaded_models.append(model)
-                except Exception as e:
-                    print(f"❌ Falha ao carregar {p} mesmo com custom_objects: {str(e)}")
-            else:
-                print(f"❌ Erro ao carregar {p}: {str(e)}")
-        except Exception as e:
-            print(f"❌ Erro inesperado ao carregar {p}: {str(e)}")
-    return loaded_models
+def load_pytorch_models(paths, model_class, device):
+    models = []
+    for path in paths:
+        model = model_class()
+        model.load_state_dict(torch.load(path, map_location=device))
+        model.to(device)
+        model.eval()
+        models.append(model)
+    return models
 
 
-
-def predict_dataset(models, dataset):
+def predict_dataset(models, dataloader, device):
     y_true = []
     preds_list = [[] for _ in models]
 
-    for x_batch, y_batch in dataset:
-        y_true.extend(y_batch.numpy())
-        for i, model in enumerate(models):
-            preds = model.predict(x_batch, verbose=0)
-            preds_list[i].extend(preds)
+    with torch.no_grad():
+        for images, labels in dataloader:
+            images = images.to(device)
+            y_true.extend(labels.numpy())
+            for i, model in enumerate(models):
+                outputs = model(images)
+                probs = torch.softmax(outputs, dim=1).cpu().numpy()
+                preds_list[i].extend(probs)
 
     y_true = np.array(y_true)
-    preds_list = [np.array(p) for p in preds_list]
+    preds_list = [np.array(preds) for preds in preds_list]
     return y_true, preds_list
+
 
 def majority_vote(preds_list):
     class_preds = [np.argmax(p, axis=1) for p in preds_list]
     stacked_preds = np.stack(class_preds)
     voted = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=stacked_preds)
     return voted
+
 
 def plot_roc_curves(y_true, preds_list, names, save_path):
     plt.figure(figsize=(10, 8))
@@ -69,11 +52,8 @@ def plot_roc_curves(y_true, preds_list, names, save_path):
         fpr, tpr, _ = roc_curve(y_true, preds[:, 1])
         roc_auc = auc(fpr, tpr)
 
-        # Nome-base simplificado para salvar arquivos
         model_base = names[i].split('_epoch')[0] if '_epoch' in names[i] else names[i].split('_')[0]
 
-
-        # Salvar arquivos .npy
         path_npy = os.path.join(save_path, 'npy')
         os.makedirs(path_npy, exist_ok=True)
 
@@ -93,11 +73,9 @@ def plot_roc_curves(y_true, preds_list, names, save_path):
             'auc': roc_auc
         })
 
-    # Ensemble ROC
     avg_preds = np.mean(np.stack(preds_list), axis=0)
     fpr_ens, tpr_ens, _ = roc_curve(y_true, avg_preds[:, 1])
     auc_ens = auc(fpr_ens, tpr_ens)
-    os.makedirs(path_npy, exist_ok=True)
     np.save(os.path.join(path_npy, 'ensemble_fpr.npy'), fpr_ens)
     np.save(os.path.join(path_npy, 'ensemble_tpr.npy'), tpr_ens)
     np.save(os.path.join(path_npy, 'ensemble_auc.npy'), np.array([auc_ens]))
@@ -126,6 +104,7 @@ def plot_conf_matrix(y_true, y_pred, labels, save_path):
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, 'confusion_matrix.png'))
     plt.close()
+
 
 def compute_metrics(y_true, y_pred):
     return {

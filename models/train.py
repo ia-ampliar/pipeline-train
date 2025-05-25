@@ -1,88 +1,57 @@
-# train.py
-import tensorflow as tf
-import pandas as pd
-from datetime import datetime
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-import pickle
-import os
-# train.py
-import tensorflow as tf
-import pandas as pd
-from datetime import datetime
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-import pickle
+import torch
+from torch.utils.tensorboard import SummaryWriter
 import os
 
+def train_model(model, train_loader, val_loader, device, epochs, optimizer, criterion, scheduler=None, save_path=None):
+    model.to(device)
+    writer = SummaryWriter()
 
-def train_model(model, model_name, model_path, weights_path, batch_size, epochs, 
-                early_stopping, checkpoint, checkpoint_all, 
-                tensorboard_callback, train_generator, val_generator, 
-                initial_epoch=0, load_weight=None):
-    
-    BASE_DIR = "train history/"
-    if not os.path.exists(BASE_DIR):
-        os.makedirs(BASE_DIR)
+    best_val_loss = float('inf')
+    for epoch in range(epochs):
+        model.train()
+        train_loss = 0.0
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
 
-    # Verifica se há pesos salvos e carrega-os se initial_epoch > 0
-    if initial_epoch > 0:
-        try:
-            if load_weight is not None:
-                model = tf.keras.models.load_model(load_weight)
-                print(f"Carregando pesos salvos para retomar treinamento a partir da época {initial_epoch}.")
-        except:
-            print(f"Arquivo de pesos não encontrado em {load_weight}. Iniciando treinamento do zero.")
-            initial_epoch = 0
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * images.size(0)
 
-    # Lista de callbacks
-    callbacks_list = [early_stopping, checkpoint, tensorboard_callback]
-    if checkpoint_all is not None:
-        callbacks_list.append(checkpoint_all)
-    
-    # Adiciona callback para salvar histórico em CSV
-    csv_logger = tf.keras.callbacks.CSVLogger(
-        f'{model_name}_training_history.csv',
-        separator=',',
-        append=False
-    )
-    callbacks_list.append(csv_logger)
+        train_loss /= len(train_loader.dataset)
 
-    # Treinamento
-    history = model.fit(
-        train_generator,
-        validation_data=val_generator,
-        epochs=epochs,
-        initial_epoch=initial_epoch,
-        steps_per_epoch=train_generator.samples // batch_size,
-        validation_steps=val_generator.samples // batch_size,
-        callbacks=callbacks_list,
-        verbose=1
-    )
-    
-    # Salva o histórico completo em pickle (opcional)
-    with open(BASE_DIR + f'{model_name}_historico.pkl', 'wb') as f:
-        pickle.dump(history.history, f)
+        model.eval()
+        val_loss = 0.0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item() * images.size(0)
 
-    # Processa o histórico para criar um DataFrame mais completo
-    history_df = pd.DataFrame(history.history)
-    history_df.insert(0, 'epoch', range(initial_epoch + 1, initial_epoch + 1 + len(history_df)))
-    history_df.insert(1, 'model_name', model_name)
+                _, predicted = torch.max(outputs, 1)
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0)
 
-    # Adiciona coluna 'best_epoch' com marcação booleana
-    if hasattr(early_stopping, 'best_epoch'):
-        best_epoch_absolute = early_stopping.stopped_epoch - early_stopping.patience
-        history_df['is_best_epoch'] = history_df['epoch'] == (best_epoch_absolute + 1)  # +1 para alinhar com index humano
-    else:
-        history_df['is_best_epoch'] = False
+        val_loss /= len(val_loader.dataset)
+        val_acc = correct / total
 
-    # Salva em CSV com informações adicionais
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = BASE_DIR + f'{model_name}_training_history_{timestamp}.csv'
-    history_df.to_csv(csv_filename, index=False)
-    print(f"Histórico completo salvo em: {csv_filename}")
+        print(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.4f}")
 
-    # Salvar os pesos finais
-    model.save_weights(weights_path + f'{model_name}_weights_224x224.weights.h5')
-    model.save(model_path + f'{model_name}_model_224x224.keras')
-    print(f"Pesos treinados salvos em: {weights_path}")
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Loss/val', val_loss, epoch)
+        writer.add_scalar('Accuracy/val', val_acc, epoch)
 
-    return history
+        if scheduler:
+            scheduler.step(val_loss)
+
+        if save_path and val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), save_path)
+            print(f"Modelo salvo com val_loss {best_val_loss:.4f}")
+
+    writer.close()
