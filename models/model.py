@@ -380,7 +380,7 @@ class Models:
         x = GlobalAveragePooling2D()(x)
         x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.7)(x)
+        x = Dropout(0.5)(x)
         output_layer = Dense(num_classes, activation='softmax')(x)
         
         model = Model(inputs=base_model.input, outputs=output_layer)
