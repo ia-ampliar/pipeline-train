@@ -10,6 +10,8 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from models.kfold_pipeline import generate_folds
+from models.train import train_model_kfold
+from utils.config import get_strategy
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
 from models.train import train_model
@@ -306,7 +308,7 @@ def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
         save_model_per_epoch=True)
 
     # Treinamento com k-fold
-    model_instance.train_model_kfold(
+    history = train_model_kfold(
         model=model,
         model_name=MODEL_NAME,
         model_path=MODEL_PATH, 
@@ -322,7 +324,8 @@ def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
         initial_epoch=0,
         load_weight=None
     )
-
+    # Plotar evolução do treinamento
+    plot_training(history, MODEL_NAME)
     print("\nTreinamento com k-fold concluído com sucesso!")
     input("\nPressione Enter para voltar ao menu principal...")
     

@@ -172,3 +172,5 @@ def train_model_kfold(model2, model_name, model_path, weights_path, batch_size, 
         if test_gen:
             test_loss, test_acc = model.evaluate(test_gen)
             print(f"[TESTE] Fold {fold} - Loss: {test_loss:.4f}, Accuracy: {test_acc:.4f}")
+            
+        return history
