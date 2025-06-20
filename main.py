@@ -108,7 +108,7 @@ def call_model(model_name):
         loss_fn = CombinedBCESoftF1Loss(alpha=0.7)  # 70% BCE + 30% F1
 
         if model_name == "alexnet":
-            model = model_instance.create_alexnet(num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_alexnet(num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
             loss=loss_fn,
@@ -120,7 +120,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "densenet":
-            model = model_instance.create_densenet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_densenet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(
                     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                     loss=loss_fn,
@@ -131,7 +131,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "efficientnet":
-            model = model_instance.create_efficientnet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_efficientnet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(
                 optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                 loss= loss_fn,
@@ -141,7 +141,7 @@ def call_model(model_name):
             return model
 
         elif model_name == "efficientnetv2":
-            model = model_instance.create_efficientnetb4_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_efficientnetb4_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(
                 optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                 loss= loss_fn,
@@ -152,7 +152,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "inception":
-            model = model_instance.create_inception_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_inception_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
                                                                     tf.keras.metrics.Precision(name='precision')]
@@ -161,7 +161,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "mobilenet":
-            model = model_instance.create_mobilenet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_mobilenet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
                                                                     tf.keras.metrics.Precision(name='precision')]
@@ -170,7 +170,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "mobilenetv2":
-            model = model_instance.create_mobilenetv2_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_mobilenetv2_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             optimizer = tf.keras.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
             model.compile(optimizer=optimizer, loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
@@ -180,7 +180,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "resnet50":
-            model = model_instance.create_resnet50_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_resnet50_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
                                                                     tf.keras.metrics.Precision(name='precision')]
@@ -189,7 +189,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "vgg16":
-            model = model_instance.create_vgg16_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_vgg16_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
                                                                     tf.keras.metrics.Precision(name='precision')]
@@ -198,7 +198,7 @@ def call_model(model_name):
             return model
         
         elif model_name == "resnet152":
-            model = model_instance.create_resnet152_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model, _ = model_instance.create_resnet152_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
                                                                     tf.keras.metrics.AUC(name='auc'),
                                                                     tf.keras.metrics.Precision(name='precision')]
