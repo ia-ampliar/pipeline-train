@@ -35,6 +35,8 @@ DELTA = 0.001
 BASE_PATH = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/"
 PATH_IMGS = BASE_PATH + 'splited'
 
+FOLDS_DIR = BASE_PATH + 'folds/' # CSV contendo os caminhos das imagens e labels
+
 WEIGHT_PATH = BASE_PATH + "weights/"
 if not os.path.exists(WEIGHT_PATH):
     os.makedirs(WEIGHT_PATH)
@@ -314,7 +316,7 @@ def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
         checkpoint=checkpoint,
         checkpoint_all=checkpoint_all,
         tensorboard_callback=tensorboard_callback,
-        folds_dir=PATH_IMGS,
+        folds_dir=FOLDS_DIR,
         k=10,
         initial_epoch=0,
         load_weight=None
