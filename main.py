@@ -108,31 +108,35 @@ def call_model(model_name):
         loss_fn = CombinedBCESoftF1Loss(alpha=0.7)  # 70% BCE + 30% F1
 
         if model_name == "alexnet":
-            model = model_instance.create_alexnet_model(num_classes=NUM_CLASSES, img_size=IMG_SIZE)
+            model = model_instance.create_alexnet(num_classes=NUM_CLASSES, img_size=IMG_SIZE)
             model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-            loss=loss_fn, metrics=['accuracy',
-                                    tf.keras.metrics.AUC(name='auc'),
-                                    tf.keras.metrics.Precision(name='precision')]
-                                )       
+            loss=loss_fn,
+            metrics=['accuracy',
+                    tf.keras.metrics.AUC(name='auc'),
+                    tf.keras.metrics.Precision(name='precision')]
+                )       
             # model.summary()
             return model
         
         elif model_name == "densenet":
             model = model_instance.create_densenet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
-            model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
-                                                                    tf.keras.metrics.AUC(name='auc'),
-                                                                    tf.keras.metrics.Precision(name='precision')]
-                            )
+            model.compile(
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                    loss=loss_fn,
+                    metrics=['accuracy', tf.keras.metrics.AUC(name='auc'),
+                              tf.keras.metrics.Precision(name='precision')]
+                )
             # model.summary()
             return model
         
         elif model_name == "efficientnet":
             model = model_instance.create_efficientnet_model(pretrained=True, num_classes=NUM_CLASSES, img_size=IMG_SIZE)
-            model.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy",
-                                                                    tf.keras.metrics.AUC(name='auc'),
-                                                                    tf.keras.metrics.Precision(name='precision')]
-                           )
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                loss= loss_fn,
+                metrics=['accuracy', tf.keras.metrics.AUC(name='auc')]
+            )
             # model.summary()
             return model
 
