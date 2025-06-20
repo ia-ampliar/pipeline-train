@@ -66,7 +66,6 @@ class Models:
         """
         train_generator = None
         val_generator   = None
-        test_generator  = None
 
         if augmentation:
 
@@ -95,13 +94,7 @@ class Models:
                 class_mode="categorical",
                 shuffle=False,
             )
-            test_generator = ImageDataGenerator(rescale=1.0 / 255).flow_from_directory(
-                directory=path_images + "/test/",
-                target_size=image_size,
-                batch_size=batch_size,
-                class_mode="categorical",
-                shuffle=False,
-            )
+      
         # If augmentation is not used, just rescale the images
         else:
             datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255)
@@ -121,15 +114,9 @@ class Models:
                 class_mode="categorical",
                 shuffle=False,
             )
-            test_generator = datagen.flow_from_directory(
-                directory=path_images + "/test/",
-                target_size=image_size,
-                batch_size=batch_size,
-                class_mode="categorical",
-                shuffle=False,
-            )
 
-        return train_generator, val_generator, test_generator
+
+        return train_generator, val_generator
     
     
     def spatial_attention(self, input_tensor):
@@ -345,7 +332,7 @@ class Models:
         x = GlobalAveragePooling2D()(x)
         x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.7)(x)  # Higher dropout for ResNet's capacity
+        x = Dropout(0.5)(x)  # Higher dropout for ResNet's capacity
         output_layer = Dense(num_classes, activation='softmax')(x)
         
         model = Model(inputs=base_model.input, outputs=output_layer)
@@ -499,9 +486,9 @@ class Models:
         # Adicionar Attention + Camadas Personalizadas
         x = self.channel_attention(base_model.output)
         x = GlobalAveragePooling2D()(x)
-        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
+        x = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.7)(x)
+        x = Dropout(0.5)(x)
         output_layer = Dense(num_classes, activation='softmax')(x)
         
         model = Model(inputs=base_model.input, outputs=output_layer)

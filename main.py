@@ -1,13 +1,15 @@
+import os
 import sys
-from tensorflow.keras.models import load_model
+import time
+import datetime
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import tensorflow as tf
-import datetime
-import os
-import time
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
+from models.kfold_pipeline import generate_folds
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
 from models.train import train_model
@@ -26,7 +28,7 @@ from models.model import Models
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 64
 EPOCHS = 100
-NUM_CLASSES = 2
+NUM_CLASSES = 4
 PACIENTE = 7
 DELTA = 0.001
 
@@ -60,16 +62,6 @@ os.makedirs(METRICS_PATH, exist_ok=True)
 
 model_instance = Models()
 
-# Carregar os geradores de dados
-print(50*"=")
-print("               Carregando o dataset...")
-print(50*"=")
-train_generator, validation_generator, test_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
-print(50*"=")
-print("          Dataset carregado com sucesso!")
-print(50*"=")
-
-
 
 def clear_screen():
     """Limpa a tela do console"""
@@ -84,18 +76,19 @@ def show_menu():
     print("="*50)
     print("\nMENU PRINCIPAL:")
     print("1. Treinar novo modelo")
-    print("2. Avaliar modelo existente")
-    print("3. Continuar treinamento do modelo")
-    print("4. Criar modelo ensemble")
-    print("5. Sair")
+    print("2. Treina novo modelo com k-fold")
+    print("3. Avaliar modelo existente")
+    print("4. Continuar treinamento do modelo")
+    print("5. Criar modelo ensemble")
+    print("6. Sair")
     print("\n" + "="*50)
 
 def get_user_choice():
     """Obtém a escolha do usuário"""
     while True:
         try:
-            choice = int(input("\nDigite sua opção (1-5): "))
-            if 1 <= choice <= 4:
+            choice = int(input("\nDigite sua opção (1-6): "))
+            if 1 <= choice <= 6:
                 return choice
             else:
                 print("Opção inválida. Por favor, digite um número entre 1 e 5.")
@@ -284,6 +277,51 @@ def continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, vali
 
     print("\nTreinamento adicional concluído com sucesso!")
     input("\nPressione Enter para voltar ao menu principal...")
+
+
+def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
+    """Executa o treinamento de um modelo com k-fold"""
+    print("\nIniciando treinamento com k-fold...")
+    
+    # Verifica se há GPU disponível
+    get_gpu_memory()
+
+    # Criar modelo dentro da estratégia
+    list_device = None
+    strategy = model_instance.get_strategy(list_device)
+    with strategy.scope():
+        model = call_model(MODEL_NAME)
+
+    # Callbacks
+    early_stopping, checkpoint, checkpoint_all, tensorboard_callback = get_callbacks(
+        model_name=MODEL_NAME,
+        checkpoint_path=CHECKPOINT_PATH, 
+        checkpoint_all_path=CHECKPOINT_ALL_PATH, 
+        delta=DELTA, 
+        pacience=PACIENTE, 
+        log_dir=LOG_DIR,
+        save_model_per_epoch=True)
+
+    # Treinamento com k-fold
+    model_instance.train_model_kfold(
+        model=model,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH, 
+        weights_path=WEIGHT_PATH,
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        early_stopping=early_stopping, 
+        checkpoint=checkpoint,
+        checkpoint_all=checkpoint_all,
+        tensorboard_callback=tensorboard_callback,
+        folds_dir=PATH_IMGS,
+        k=10,
+        initial_epoch=0,
+        load_weight=None
+    )
+
+    print("\nTreinamento com k-fold concluído com sucesso!")
+    input("\nPressione Enter para voltar ao menu principal...")
     
     
 def models_available():
@@ -367,6 +405,17 @@ def main():
         choice = get_user_choice()
 
         if choice == 1:
+            
+            # Carregar os geradores de dados
+            print(50*"=")
+            print("               Carregando o dataset...")
+            print(50*"=")
+            train_generator, validation_generator = model_instance.get_generators(PATH_IMGS, IMG_SIZE, BATCH_SIZE)
+            print(50*"=")
+            print("          Dataset carregado com sucesso!")
+            print(50*"=")
+
+
             model_options, model_choice = models_available()
             if model_choice == 11:
                 continue
@@ -398,9 +447,43 @@ def main():
                 print(f"Modelo escolhido: {MODEL_NAME}")
                 print(50*"=")
             time.sleep(2)
+    
+            LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            generate_folds("caminho/do/seu_arquivo.csv", k=10, split_ratios=(0.7, 0.2, 0.1))
+            print("➡️     Iniciando treinamento com k-fold...")
+            time.sleep(2)
+            k_fold_model(model_instance, MODEL_NAME, LOG_DIR)
+       
+
+        elif choice == 3:
+            model_options, model_choice = models_available()
+            if model_choice == 11:
+                continue
+            
+            if not model_choice in model_options:
+                print("Opção inválida.")
+                time.sleep(2)
+                continue
+            else:
+                MODEL_NAME = get_model_name(model_choice)
+                print(f"Modelo escolhido: {MODEL_NAME}")
+                print(50*"=")
+            time.sleep(2)
+            # Carregar os geradores de dados
+            print(50*"=")
+            print("               Carregando o dataset...")
+            print(50*"=")
+            test_generator = ImageDataGenerator(rescale=1.0 / 255).flow_from_directory(
+                                    directory=PATH_IMGS + "/test/",
+                                    target_size=IMG_SIZE,
+                                    batch_size=BATCH_SIZE,
+                                    class_mode="categorical",
+                                    shuffle=False,
+                                )
+            
             # Avaliação do modelo
             evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=True)
-        elif choice == 3:
+        elif choice == 4:
             model_options, model_choice = models_available()
             if model_choice == 11:
                 continue
@@ -418,7 +501,7 @@ def main():
             LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")            
             continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, validation_generator)
 
-        elif choice == 4:
+        elif choice == 5:
 
             BASE_PATH_MODEL = input("Digite o caminho base dos modelos: ")
             if not BASE_PATH_MODEL.endswith("/"):
@@ -485,8 +568,9 @@ def main():
             print("✅     Concluído! Arquivos salvos em:", METRICS_PATH)
 
     
-        elif choice == 5:
+        elif choice == 6:
             print("\nSaindo do sistema...")
+            break
             sys.exit()
 
 if __name__ == "__main__":
