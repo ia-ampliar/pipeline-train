@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 from datetime import datetime
+import time
 
 
 class CSVImageGenerator(tf.keras.utils.Sequence):
@@ -44,10 +45,10 @@ class CSVImageGenerator(tf.keras.utils.Sequence):
         return np.array(X), tf.keras.utils.to_categorical(y, num_classes=self.num_classes)
 
 
-def expand_image_paths(df):
+def expand_image_paths(df, base_replace_from='tiling', base_replace_to='tiling_macenko'):
     expanded_rows = []
     for _, row in df.iterrows():
-        folder_path = row['Image_path']
+        folder_path = row['Image_path'].replace(base_replace_from, base_replace_to)
         label = row['Label']
         if not os.path.isdir(folder_path):
             print(f"[AVISO] Caminho não encontrado: {folder_path}")
@@ -59,12 +60,17 @@ def expand_image_paths(df):
     return pd.DataFrame(expanded_rows)
 
 
-def generate_folds(csv_path, k=5, seed=42, output_dir="outputs/folds", split_ratios=(0.7, 0.2, 0.1)):
+def generate_folds(csv_path, k=5, seed=42, output_dir="outputs/folds", split_ratios=(0.7, 0.2, 0.1), base_replace_from='tiling', base_replace_to='tiling_macenko', force=False):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if os.path.exists(output_dir) and len(os.listdir(output_dir)) > 0 and not force:
+        print(f"[INFO] Pasta {output_dir} já existe e contém arquivos. Pulando geração de folds.")
+        return
+
     os.makedirs(output_dir, exist_ok=True)
     df = pd.read_csv(csv_path)
 
-    df_expanded = expand_image_paths(df)
+    df_expanded = expand_image_paths(df, base_replace_from, base_replace_to)
 
     print(f"[INFO] Salvando arquivos na pasta: {output_dir}")
 
@@ -96,8 +102,6 @@ def get_csv_generators(train_csv_path, val_csv_path, test_csv_path=None, image_s
         test_generator = None
 
     return train_generator, val_generator, test_generator
-
-
 
 class EpochTimer(tf.keras.callbacks.Callback):
     def on_epoch_begin(self, epoch, logs=None):
