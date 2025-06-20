@@ -11,10 +11,11 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Resizing
-from tensorflow.keras.applications import MobileNet
 from tensorflow.keras import Model, layers, regularizers
 from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
-
+from tensorflow.keras.applications import ResNet50, ResNet101, ResNet152, VGG16, VGG19
+from tensorflow.keras.applications import DenseNet201, InceptionV3, MobileNet, NASNetMobile
+from tensorflow.keras.applications import MobileNetV2, EfficientNetB0, EfficientNetB4
 
 
 class Models:
@@ -107,8 +108,8 @@ class Models:
 
         return train_generator, val_generator, test_generator
 
+
     def channel_attention(self, input_tensor):
-        """Módulo de Attention para focar em regiões relevantes da imagem."""
         channels = input_tensor.shape[-1]
         shared_layer = Dense(channels // 8, activation='relu')
         avg_pool = GlobalAveragePooling2D()(input_tensor)
@@ -117,67 +118,77 @@ class Models:
         max_out = shared_layer(max_pool)
         attention = Dense(channels, activation='sigmoid')(avg_out + max_out)
         return Multiply()([input_tensor, Reshape((1, 1, channels))(attention)])
-    
 
-    def create_mobilenetv2_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        base_model = MobileNetV2(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
+
+    def build_model(self, base_model, num_classes, mode):
         x = GlobalAveragePooling2D()(base_model.output)
         x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    def create_mobilenetv3_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        base_model = MobileNetV2(
-            weights="imagenet" if pretrained else None, 
-            include_top=False, 
-            input_shape=(*img_size, 3))
-        base_model.trainable = False  # Congela inicialmente
-        
-        x = GlobalAveragePooling2D()(base_model.output)
+        activation = 'sigmoid' if mode else 'softmax'
+        loss_fn = tf.keras.losses.BinaryCrossentropy() if mode else tf.keras.losses.CategoricalCrossentropy()
+        output_layer = Dense(num_classes, activation=activation)(x)
+        return Model(inputs=base_model.input, outputs=output_layer), loss_fn
+
+
+    def create_resnet50_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = ResNet50(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_resnet101_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = ResNet101(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_resnet152_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = ResNet152(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_vgg16_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = VGG16(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_vgg19_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = VGG19(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_densenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = DenseNet201(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = InceptionV3(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        x = self.channel_attention(base_model.output)
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax", 
-                           kernel_regularizer=regularizers.l2(0.001))(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-
-    def create_mnasnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create a MobileNetV2 model with optional pre-trained weights.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = NASNetMobile(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
+        x = Dropout(0.7)(x)
+        activation = 'sigmoid' if mode else 'softmax'
+        loss_fn = tf.keras.losses.BinaryCrossentropy() if mode else tf.keras.losses.CategoricalCrossentropy()
+        output_layer = Dense(num_classes, activation=activation)(x)
+        return Model(inputs=base_model.input, outputs=output_layer), loss_fn
     
-    def create_alexnet(self, num_classes=2, img_size=(224, 224)):
-        """
-        Create an AlexNet model.
-        Args:
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
+    
+    def create_mobilenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = MobileNet(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+    
+
+    def create_mobilenetv2_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = MobileNetV2(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+
+    def create_mnasnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = NASNetMobile(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
+
+    def create_alexnet(self, num_classes=2, img_size=(224, 224), mode=False):
         model = Sequential([
-            Resizing(227, 227),  # Redimensiona a entrada para 227x227
+            tf.keras.layers.Resizing(227, 227),
             Conv2D(96, (11, 11), strides=4, activation='relu', input_shape=(227, 227, 3)),
             MaxPooling2D((3, 3), strides=2),
             Conv2D(256, (5, 5), padding='same', activation='relu'),
@@ -191,197 +202,23 @@ class Models:
             Dropout(0.5),
             Dense(4096, activation='relu'),
             Dropout(0.5),
-            Dense(num_classes, activation='softmax')
+            Dense(num_classes, activation='sigmoid' if mode else 'softmax')
         ])
-        return model
-    
-    def create_shuffnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create a ShuffleNet model.
-        Args:
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = MobileNet(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    def create_resnet50_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create a ResNet50 model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = tf.keras.applications.ResNet50(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    def create_densenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create a DenseNet model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = tf.keras.applications.DenseNet121(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    def create_vgg16_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create a VGG16 model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = tf.keras.applications.VGG16(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
-    # def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-    #     """
-    #     Create an InceptionV3 model.
-    #     Args:
-    #         pretrained (bool): If True, use pre-trained weights.
-    #         num_classes (int): Number of output classes.
-    #         img_size (tuple): Input image size.
-    #     Returns:
-    #         model (tf.keras.Model): Keras model instance.
-    #     """
-    #     base_model = tf.keras.applications.InceptionV3(
-    #         weights="imagenet" if pretrained else None,
-    #         include_top=False,
-    #         input_shape=(*img_size, 3),
-    #     )
-    #     x = GlobalAveragePooling2D()(base_model.output)
-    #     x = Dropout(0.5)(x)
-    #     output_layer = Dense(num_classes, activation="softmax")(x)
-    #     model = Model(inputs=base_model.input, outputs=output_layer)
-    #     return model
-    
-    def create_inception_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Cria um modelo InceptionV3 aprimorado com:
-        - Pré-treinamento em ImageNet (opcional)
-        - Mecanismo de Attention
-        - Regularização (Dropout + L2)
-        - Fine-tuning direcionado
-        - Batch Normalization
-        """
-        # Base do modelo
-        base_model = tf.keras.applications.InceptionV3(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3)
-        )
-        
-        # Fine-tuning: descongelar últimos 15 layers (Inception tem mais camadas que EfficientNet)
-        base_model.trainable = False
-        for layer in base_model.layers[-15:]:
-            layer.trainable = True
-        
-        # Adicionar Attention + Camadas Personalizadas
-        x = self.channel_attention(base_model.output)
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
-        x = BatchNormalization()(x)
-        x = Dropout(0.7)(x)
-        output_layer = Dense(num_classes, activation='softmax')(x)
-        
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
+        loss_fn = tf.keras.losses.BinaryCrossentropy() if mode else tf.keras.losses.CategoricalCrossentropy()
+        return model, loss_fn
 
-    
-    def create_efficientnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Create an EfficientNet model.
-        Args:
-            pretrained (bool): If True, use pre-trained weights.
-            num_classes (int): Number of output classes.
-            img_size (tuple): Input image size.
-        Returns:
-            model (tf.keras.Model): Keras model instance.
-        """
-        base_model = tf.keras.applications.EfficientNetB0(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3),
-        )
-        x = GlobalAveragePooling2D()(base_model.output)
-        x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
-    
+    def create_efficientnet_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = EfficientNetB0(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
+        return self.build_model(base_model, num_classes, mode)
 
-
-    def create_efficientnetb4_model(self, pretrained=True, num_classes=2, img_size=(224, 224)):
-        """
-        Cria um modelo EfficientNetB4 com:
-        - Pré-treinamento em ImageNet.
-        - Camadas de Attention.
-        - Regularização (Dropout + L2).
-        - Fine-tuning direcionado.
-        """
-        # Base do modelo (EfficientNetB4)
-        base_model = tf.keras.applications.EfficientNetB4(
-            weights="imagenet" if pretrained else None,
-            include_top=False,
-            input_shape=(*img_size, 3)
-        )
-        
-        # Congelar camadas iniciais e descongelar as últimas 10
-        base_model.trainable = False
-        for layer in base_model.layers[-10:]:
-            layer.trainable = True
-        
-        # Adicionar Attention + Camadas Personalizadas
+    def create_efficientnetb4_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
+        base_model = EfficientNetB4(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
         x = self.channel_attention(base_model.output)
         x = GlobalAveragePooling2D()(x)
         x = Dense(512, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(x)
         x = BatchNormalization()(x)
         x = Dropout(0.5)(x)
-        output_layer = Dense(num_classes, activation='softmax')(x)
-        
-        model = Model(inputs=base_model.input, outputs=output_layer)
-        return model
+        activation = 'sigmoid' if mode else 'softmax'
+        loss_fn = tf.keras.losses.BinaryCrossentropy() if mode else tf.keras.losses.CategoricalCrossentropy()
+        output_layer = Dense(num_classes, activation=activation)(x)
+        return Model(inputs=base_model.input, outputs=output_layer), loss_fn

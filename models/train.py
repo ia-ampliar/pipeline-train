@@ -1,10 +1,17 @@
 # train.py
-import tensorflow as tf
-import pandas as pd
-from datetime import datetime
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-import pickle
+import csv
 import os
+import pandas as pd
+import tensorflow as tf
+from datetime import datetime
+import pickle
+from models.kfold_pipeline import get_csv_generators, EpochTimer
+from models.model import Models
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, CSVLogger
+
+
+
+
 
 def train_model(model, model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
@@ -26,10 +33,18 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
             initial_epoch = 0
 
     # Lista de callbacks
-    callbacks_list = [early_stopping, checkpoint, tensorboard_callback]
+    callbacks_list = [early_stopping, checkpoint, tensorboard_callback,  EpochTimer()]
     if checkpoint_all is not None:
         callbacks_list.append(checkpoint_all)
     
+    # Adiciona callback para salvar histórico em CSV
+    csv_logger = tf.keras.callbacks.CSVLogger(
+        f'{model_name}_training_history.csv',
+        separator=',',
+        append=False
+    )
+    callbacks_list.append(csv_logger)
+
     # Treinamento
     history = model.fit(
         train_generator,
@@ -50,24 +65,18 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     history_df = pd.DataFrame(history.history)
     history_df.insert(0, 'epoch', range(initial_epoch + 1, initial_epoch + 1 + len(history_df)))
     history_df.insert(1, 'model_name', model_name)
-    
-    # Adiciona coluna indicando a melhor época (early stopping)
-    if hasattr(early_stopping, 'stopped_epoch'):
-        best_epoch = early_stopping.stopped_epoch - early_stopping.patience + 1
-        history_df['best_epoch'] = history_df['epoch'].apply(
-            lambda x: 'BEST_EPOCH' if x == best_epoch else ''
-        )
+
+    # Adiciona coluna 'best_epoch' com marcação booleana
+    if hasattr(early_stopping, 'best_epoch'):
+        best_epoch_absolute = early_stopping.stopped_epoch - early_stopping.patience
+        history_df['is_best_epoch'] = history_df['epoch'] == (best_epoch_absolute + 1)  
     else:
-        history_df['best_epoch'] = ''
-    
+        history_df['is_best_epoch'] = False
+
     # Salva em CSV com informações adicionais
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_filename = BASE_DIR + f'{model_name}_training_history_{timestamp}.csv'
     history_df.to_csv(csv_filename, index=False)
-    
-    # Cria uma versão formatada do CSV (com destaques)
-    format_csv(csv_filename, best_epoch if 'best_epoch' in locals() else None)
-    
     print(f"Histórico completo salvo em: {csv_filename}")
 
     # Salvar os pesos finais
@@ -77,34 +86,95 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
 
     return history
 
-def format_csv(csv_path, best_epoch=None):
-    """Formata o CSV para destacar a melhor época"""
-    try:
-        df = pd.read_csv(csv_path)
-        
-        # Adiciona comentários no início do arquivo
-        comments = [
-            "# MODEL TRAINING HISTORY",
-            f"# Best epoch: {best_epoch}" if best_epoch else "# No early stopping triggered",
-            "#" * 50,
-            ""
-        ]
-        
-        # Se houver melhor época, destacamos no CSV
-        if best_epoch:
-            # Adiciona asteriscos na linha da melhor época
-            df['epoch'] = df['epoch'].astype(str)
-            df.loc[df['epoch'] == str(best_epoch), 'epoch'] = f"**{best_epoch}** (best)"
-            
-            # Adiciona uma linha de separação após a melhor época
-            best_idx = df[df['epoch'].str.contains(f"\\*\\*{best_epoch}")].index[0]
-            sep_line = pd.DataFrame({col: ['-----'] if col == 'epoch' else [''] for col in df.columns})
-            df = pd.concat([df.iloc[:best_idx+1], sep_line, df.iloc[best_idx+1:]]).reset_index(drop=True)
-        
-        # Salva o CSV formatado
-        with open(csv_path, 'w') as f:
-            f.write('\n'.join(comments))
-            df.to_csv(f, index=False)
-            
-    except Exception as e:
-        print(f"Erro ao formatar CSV: {e}")
+
+
+def train_model_kfold(model, model_name, model_path, weights_path, batch_size, epochs, 
+                early_stopping, checkpoint, checkpoint_all, 
+                tensorboard_callback, folds_dir, k=10,
+                initial_epoch=0, load_weight=None):
+
+
+    BASE_DIR = "train history/"
+    BEST_EPOCH_LOG = os.path.join(BASE_DIR, "best_epochs_summary.csv")
+
+    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
+
+    for fold in range(k):
+        print(f"\n[INFO] Treinando Fold {fold + 1}/{k}")
+
+        train_csv = os.path.join(folds_dir, f"fold_{fold}_train.csv")
+        val_csv = os.path.join(folds_dir, f"fold_{fold}_val.csv")
+        test_csv = os.path.join(folds_dir, "test.csv")
+
+        train_gen, val_gen, test_gen = get_csv_generators(
+            train_csv, val_csv, test_csv,
+            image_size=(224, 224), batch_size=batch_size
+        )
+
+        csv_logger = CSVLogger(f'{model_name}_training_history.csv', separator=',', append=False)
+        epoch_timer = EpochTimer()
+
+        callbacks_list = [early_stopping, checkpoint, tensorboard_callback, epoch_timer, csv_logger]
+        if checkpoint_all is not None:
+            callbacks_list.append(checkpoint_all)
+
+        if initial_epoch > 0 and load_weight is not None:
+            try:
+                model = tf.keras.models.load_model(load_weight)
+                print(f"Carregando pesos de {load_weight} para continuar da época {initial_epoch}.")
+            except Exception as e:
+                print(f"[ERRO] Falha ao carregar pesos: {e}. Iniciando do zero.")
+                initial_epoch = 0
+
+        history = model.fit(
+            train_gen,
+            validation_data=val_gen,
+            epochs=epochs,
+            initial_epoch=initial_epoch,
+            steps_per_epoch=train_gen.__len__(),
+            validation_steps=val_gen.__len__(),
+            callbacks=callbacks_list,
+            verbose=1
+        )
+
+        with open(BASE_DIR + f'{model_name}_historico.pkl', 'wb') as f:
+            pickle.dump(history.history, f)
+
+        history_df = pd.DataFrame(history.history)
+        history_df.insert(0, 'epoch', range(initial_epoch + 1, initial_epoch + 1 + len(history_df)))
+        history_df.insert(1, 'model_name', model_name)
+
+        if hasattr(early_stopping, 'stopped_epoch'):
+            best_epoch = early_stopping.stopped_epoch - early_stopping.patience + 1
+            history_df['is_best_epoch'] = history_df['epoch'] == best_epoch
+        else:
+            best_epoch = np.argmin(history.history['val_loss']) + 1
+            history_df['is_best_epoch'] = history_df['epoch'] == best_epoch
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = BASE_DIR + f'{model_name}_training_history_{timestamp}.csv'
+        history_df.to_csv(csv_filename, index=False)
+        print(f"Histórico salvo em: {csv_filename}")
+
+        model_save_path = os.path.join(model_path, f'{model_name}_fold{fold}_model_224x224.keras')
+        weights_save_path = os.path.join(weights_path, f'{model_name}_fold{fold}_weights_224x224.weights.h5')
+        model.save_weights(weights_save_path)
+        model.save(model_save_path)
+        print(f"Pesos salvos para Fold {fold}: {weights_save_path}")
+
+        # Salvar melhor época do fold
+        best_val_loss = history.history['val_loss'][best_epoch - 1] if 'val_loss' in history.history else None
+        file_exists = os.path.exists(BEST_EPOCH_LOG)
+        with open(BEST_EPOCH_LOG, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(['fold', 'model_name', 'best_epoch', 'best_val_loss'])
+            writer.writerow([fold, model_name, best_epoch, best_val_loss])
+
+        if test_gen:
+            test_loss, test_acc = model.evaluate(test_gen)
+            print(f"[TESTE] Fold {fold} - Loss: {test_loss:.4f}, Accuracy: {test_acc:.4f}")
+
+    return history
