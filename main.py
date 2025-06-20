@@ -36,7 +36,7 @@ BASE_PATH = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/"
 PATH_IMGS = BASE_PATH + 'splited'
 
 # CSV contendo os caminhos das imagens e labels
-FOLDS_DIR = BASE_PATH + 'folds/' 
+FOLDS_DIR = None 
 
 WEIGHT_PATH = BASE_PATH + "weights/"
 if not os.path.exists(WEIGHT_PATH):
@@ -452,7 +452,17 @@ def main():
             time.sleep(2)
     
             LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            generate_folds("caminho/do/seu_arquivo.csv", k=10, split_ratios=(0.7, 0.2, 0.1))
+            print("➡️     Gerando os folds...")
+            time.sleep(2)
+            if FOLDS_DIR is None:
+                path_csv = input("Digite o caminho do CSV com os caminhos das imagens e labels: ")
+                if not path_csv.endswith(".csv"):
+                    print("Caminho inválido. O CSV deve terminar com '.csv'.")
+                    continue
+                generate_folds(path_csv, k=10, split_ratios=(0.7, 0.2, 0.1))
+            else:
+                generate_folds(path_csv, k=10, split_ratios=(0.7, 0.2, 0.1))
+
             print("➡️     Iniciando treinamento com k-fold...")
             time.sleep(2)
             k_fold_model(model_instance, MODEL_NAME, LOG_DIR)

@@ -4,8 +4,8 @@ import pandas as pd
 import tensorflow as tf
 from datetime import datetime
 import pickle
-from kfold_pipeline import get_csv_generators, EpochTimer
-from model import Models
+from models.kfold_pipeline import get_csv_generators, EpochTimer
+from models.model import Models
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, CSVLogger
 
 
