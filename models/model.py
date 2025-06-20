@@ -16,6 +16,32 @@ from tensorflow.keras.layers import Multiply, Reshape, GlobalMaxPooling2D
 from tensorflow.keras.applications import ResNet50, ResNet101, ResNet152, VGG16, VGG19
 from tensorflow.keras.applications import DenseNet201, InceptionV3, MobileNet, NASNetMobile
 from tensorflow.keras.applications import MobileNetV2, EfficientNetB0, EfficientNetB4
+from keras.saving import register_keras_serializable
+from tensorflow.keras.layers import GlobalMaxPooling2D, GlobalAveragePooling2D
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+
+
+@register_keras_serializable()
+class SpatialAttentionLayer(tf.keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(SpatialAttentionLayer, self).__init__(**kwargs)
+        
+    def build(self, input_shape):
+        self.conv = tf.keras.layers.Conv2D(1, (7, 7), padding='same', activation='sigmoid')
+        super(SpatialAttentionLayer, self).build(input_shape)
+        
+    def call(self, inputs):
+        # Average pooling along the channel axis
+        avg_pool = tf.keras.backend.mean(inputs, axis=-1, keepdims=True)
+        # Max pooling along the channel axis
+        max_pool = tf.keras.backend.max(inputs, axis=-1, keepdims=True)
+        # Concatenate
+        concat = tf.keras.layers.Concatenate(axis=-1)([avg_pool, max_pool])
+        # Apply conv layer
+        attention = self.conv(concat)
+        # Multiply with original input
+        return tf.keras.layers.Multiply()([inputs, attention])
+    
 
 
 class Models:
@@ -171,7 +197,7 @@ class Models:
         output_layer = Dense(num_classes, activation=activation)(x)
         return Model(inputs=base_model.input, outputs=output_layer), loss_fn
     
-    
+
     def create_mobilenet_model(self, pretrained=True, num_classes=2, img_size=(224, 224), mode=False):
         base_model = MobileNet(weights='imagenet' if pretrained else None, include_top=False, input_shape=(*img_size, 3))
         return self.build_model(base_model, num_classes, mode)
