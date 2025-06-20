@@ -309,7 +309,6 @@ def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
 
     # Treinamento com k-fold
     history = train_model_kfold(
-        model=model,
         model_name=MODEL_NAME,
         model_path=MODEL_PATH, 
         weights_path=WEIGHT_PATH,

@@ -85,7 +85,7 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     return history
 
 
-def train_model_kfold(model2, model_name, model_path, weights_path, batch_size, epochs, 
+def train_model_kfold(model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
                 tensorboard_callback, folds_dir, k=10,
                 initial_epoch=0, load_weight=None):
@@ -172,5 +172,5 @@ def train_model_kfold(model2, model_name, model_path, weights_path, batch_size, 
         if test_gen:
             test_loss, test_acc = model.evaluate(test_gen)
             print(f"[TESTE] Fold {fold} - Loss: {test_loss:.4f}, Accuracy: {test_acc:.4f}")
-            
+
         return history
