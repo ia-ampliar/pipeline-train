@@ -9,7 +9,7 @@ from datetime import datetime
 
 
 class CSVImageGenerator(tf.keras.utils.Sequence):
-    def __init__(self, dataframe, image_size=(224, 224), batch_size=32, shuffle=True, augment=False, num_classes=None):
+    def __init__(self, dataframe, image_size=(224, 224), batch_size=64, shuffle=True, augment=False, num_classes=None):
         self.df = dataframe.copy()
         self.image_size = image_size
         self.batch_size = batch_size
@@ -83,7 +83,7 @@ def generate_folds(csv_path, k=5, seed=42, output_dir="outputs/folds", split_rat
         print(f"[INFO] Fold {fold_idx} salvo: {train_path}, {val_path}")
 
 
-def get_csv_generators(train_csv_path, val_csv_path, test_csv_path=None, image_size=(224, 224), batch_size=32, num_classes=None):
+def get_csv_generators(train_csv_path, val_csv_path, test_csv_path=None, image_size=(224, 224), batch_size=64, num_classes=None):
     train_df = pd.read_csv(train_csv_path)
     val_df = pd.read_csv(val_csv_path)
 
@@ -97,3 +97,13 @@ def get_csv_generators(train_csv_path, val_csv_path, test_csv_path=None, image_s
         test_generator = None
 
     return train_generator, val_generator, test_generator
+
+
+
+class EpochTimer(tf.keras.callbacks.Callback):
+    def on_epoch_begin(self, epoch, logs=None):
+        self.start_time = time.time()
+
+    def on_epoch_end(self, epoch, logs=None):
+        duration = time.time() - self.start_time
+        print(f"[TIMER] Epoch {epoch + 1} completed in {duration:.2f} seconds.")
