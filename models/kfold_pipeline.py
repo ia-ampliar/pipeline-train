@@ -61,7 +61,6 @@ def expand_image_paths(df):
 
 def generate_folds(csv_path, k=5, seed=42, output_dir="outputs/folds", split_ratios=(0.7, 0.2, 0.1)):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(output_dir, f"split_{timestamp}")
     os.makedirs(output_dir, exist_ok=True)
     df = pd.read_csv(csv_path)
 
