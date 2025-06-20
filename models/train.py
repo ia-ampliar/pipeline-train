@@ -85,7 +85,7 @@ def train_model(model, model_name, model_path, weights_path, batch_size, epochs,
     return history
 
 
-def train_model_kfold(model_name, model_path, weights_path, batch_size, epochs, 
+def train_model_kfold(model, model_name, model_path, weights_path, batch_size, epochs, 
                 early_stopping, checkpoint, checkpoint_all, 
                 tensorboard_callback, folds_dir, k=10,
                 initial_epoch=0, load_weight=None):
@@ -98,7 +98,6 @@ def train_model_kfold(model_name, model_path, weights_path, batch_size, epochs,
     if not os.path.exists("logs"):
         os.makedirs("logs", exist_ok=True)
 
-    model_builder = Models()
 
     for fold in range(k):
         print(f"\n[INFO] Treinando Fold {fold + 1}/{k}")
@@ -112,9 +111,6 @@ def train_model_kfold(model_name, model_path, weights_path, batch_size, epochs,
             image_size=(224, 224), batch_size=batch_size
         )
 
-        model = model_builder.create_resnet50_model(
-            num_classes=train_gen.num_classes, img_size=(224, 224)
-        )
 
         # Define o caminho para salvar os pesos e o modelo
         csv_logger = CSVLogger(f'{model_name}_training_history.csv', separator=',', append=False)

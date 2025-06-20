@@ -38,7 +38,7 @@ BASE_PATH = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/"
 PATH_IMGS = BASE_PATH + 'splited'
 
 # CSV contendo os caminhos das imagens e labels
-FOLDS_DIR = '/root/pipeline-train/outputs/folds/split_20250620_021455/'
+FOLDS_DIR = '/root/pipeline-train/outputs/folds/'
 
 WEIGHT_PATH = BASE_PATH + "weights/"
 if not os.path.exists(WEIGHT_PATH):
@@ -88,6 +88,7 @@ def show_menu():
     print("6. Sair")
     print("\n" + "="*50)
 
+
 def get_user_choice():
     """Obtém a escolha do usuário"""
     while True:
@@ -99,6 +100,7 @@ def get_user_choice():
                 print("Opção inválida. Por favor, digite um número entre 1 e 5.")
         except ValueError:
             print("Entrada inválida. Por favor, digite um número.")
+
 
 def call_model(model_name):
         """Chama o modelo baseado no nome"""
@@ -309,6 +311,7 @@ def k_fold_model(model_instance, MODEL_NAME, LOG_DIR):
 
     # Treinamento com k-fold
     history = train_model_kfold(
+        model=model,
         model_name=MODEL_NAME,
         model_path=MODEL_PATH, 
         weights_path=WEIGHT_PATH,
@@ -361,6 +364,7 @@ def models_available():
     }
 
     return model_options, model_choice
+
 
 def get_model_name(model_choice):
     """Obtém o nome do modelo a partir da escolha do usuário"""
