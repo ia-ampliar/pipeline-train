@@ -11,7 +11,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from models.kfold_pipeline import generate_folds
 from models.train import train_model_kfold
-from utils.config import get_strategy
+# from utils.config import get_strategy
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
 from models.train import train_model
