@@ -35,7 +35,8 @@ DELTA = 0.001
 BASE_PATH = "/mnt/efs-tcga/HEAL_Workspace/macenko_datas/"
 PATH_IMGS = BASE_PATH + 'splited'
 
-FOLDS_DIR = BASE_PATH + 'folds/' # CSV contendo os caminhos das imagens e labels
+# CSV contendo os caminhos das imagens e labels
+FOLDS_DIR = BASE_PATH + 'folds/' 
 
 WEIGHT_PATH = BASE_PATH + "weights/"
 if not os.path.exists(WEIGHT_PATH):
