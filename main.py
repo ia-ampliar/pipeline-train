@@ -88,9 +88,10 @@ def show_menu():
     print("1. Treinar novo modelo")
     print("2. Treina novo modelo com k-fold")
     print("3. Avaliar modelo existente")
-    print("4. Continuar treinamento do modelo")
-    print("5. Criar modelo ensemble")
-    print("6. Sair")
+    print("4. Avaliar modelo K-Fold")
+    print("5. Continuar treinamento do modelo")
+    print("6. Criar modelo ensemble")
+    print("7. Sair")
     print("\n" + "="*50)
 
 
@@ -535,7 +536,45 @@ def main():
             
             # Avaliação do modelo
             evaluate_model(test_generator, MODEL_NAME, BASE_PATH, multiclass=True)
+
+
         elif choice == 4:
+            print("\n==== Avaliação de modelos K-Fold ====\n")
+
+            # Solicita os parâmetros ao usuário
+            model_name = input("Digite o nome do modelo (ex: resnet, mobilenet): ").strip()
+            model_dir = input("Digite o caminho da pasta onde estão os modelos (.keras): ").strip()
+            folds_dir = input("Digite o caminho da pasta onde estão os arquivos dos folds (fold CSVs + test.csv): ").strip()
+            output_dir = input("Digite o diretório de saída para salvar os resultados (padrão: train history/): ").strip()
+            output_dir = output_dir if output_dir else "train history/"
+
+            try:
+                k = int(input("Digite o número de folds (ex: 10): ").strip())
+            except ValueError:
+                print("[ERRO] Número de folds inválido. Abortando.")
+                return
+
+            for fold in range(k):
+                print(f"\n[INFO] Avaliando Fold {fold} - Modelo: {model_name}")
+
+                model_path = os.path.join(model_dir, f'{model_name}_fold{fold}_model_224x224.keras')
+
+                if not os.path.exists(model_path):
+                    print(f"[AVISO] Modelo para Fold {fold} não encontrado: {model_path}. Pulando.")
+                    continue
+
+                evaluate_test_set(
+                    model_path=model_path,
+                    fold=fold,
+                    model_name=model_name,
+                    folds_dir=folds_dir,
+                    output_base_dir=output_dir
+                )
+
+            print("\n[FINALIZADO] Avaliação de todos os folds concluída.")
+
+
+        elif choice == 5:
              
             # Carregar os geradores de dados
             print(50*"=")
@@ -563,7 +602,8 @@ def main():
             LOG_DIR = f"logs/fit/{MODEL_NAME}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")            
             continue_training(model_instance, MODEL_NAME, LOG_DIR, train_generator, validation_generator)
 
-        elif choice == 5:
+
+        elif choice == 6:
 
             BASE_PATH_MODEL = input("Digite o caminho base dos modelos: ")
             if not BASE_PATH_MODEL.endswith("/"):
@@ -628,42 +668,6 @@ def main():
             full_metrics.to_csv(os.path.join(METRICS_PATH, 'model_metrics_log.csv'), index=False)
 
             print("✅     Concluído! Arquivos salvos em:", METRICS_PATH)
-
-    
-        elif choice == 6:
-            print("\n==== Avaliação de modelos K-Fold ====\n")
-
-            # Solicita os parâmetros ao usuário
-            model_name = input("Digite o nome do modelo (ex: resnet, mobilenet): ").strip()
-            model_dir = input("Digite o caminho da pasta onde estão os modelos (.keras): ").strip()
-            folds_dir = input("Digite o caminho da pasta onde estão os arquivos dos folds (fold CSVs + test.csv): ").strip()
-            output_dir = input("Digite o diretório de saída para salvar os resultados (padrão: train history/): ").strip()
-            output_dir = output_dir if output_dir else "train history/"
-
-            try:
-                k = int(input("Digite o número de folds (ex: 10): ").strip())
-            except ValueError:
-                print("[ERRO] Número de folds inválido. Abortando.")
-                return
-
-            for fold in range(k):
-                print(f"\n[INFO] Avaliando Fold {fold} - Modelo: {model_name}")
-
-                model_path = os.path.join(model_dir, f'{model_name}_fold{fold}_model_224x224.keras')
-
-                if not os.path.exists(model_path):
-                    print(f"[AVISO] Modelo para Fold {fold} não encontrado: {model_path}. Pulando.")
-                    continue
-
-                evaluate_test_set(
-                    model_path=model_path,
-                    fold=fold,
-                    model_name=model_name,
-                    folds_dir=folds_dir,
-                    output_base_dir=output_dir
-                )
-
-            print("\n[FINALIZADO] Avaliação de todos os folds concluída.")
 
 
         elif choice == 7:
