@@ -2,11 +2,43 @@ import tensorflow as tf
 from tensorflow.keras.losses import Loss
 from tensorflow.keras.saving import register_keras_serializable
 
+@register_keras_serializable()
+class CombinedBCESoftF1Loss(tf.keras.losses.Loss):
+    def __init__(self, alpha=0.5, consider_true_negative=True, sigmoid_is_applied_to_input=True, name="combined_bce_softf1_loss", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.alpha = alpha
+        self.consider_true_negative = consider_true_negative
+        self.sigmoid_is_applied_to_input = sigmoid_is_applied_to_input
+
+        self.bce = tf.keras.losses.BinaryCrossentropy()
+        self.f1 = MacroSoftF1Loss(
+            consider_true_negative=self.consider_true_negative,
+            sigmoid_is_applied_to_input=self.sigmoid_is_applied_to_input
+        )
+
+    def call(self, y_true, y_pred):
+        bce_loss = self.bce(y_true, y_pred)
+        f1_loss = self.f1(y_true, y_pred)
+        return self.alpha * bce_loss + (1 - self.alpha) * f1_loss
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "alpha": self.alpha,
+            "consider_true_negative": self.consider_true_negative,
+            "sigmoid_is_applied_to_input": self.sigmoid_is_applied_to_input
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
 @register_keras_serializable()
 class MacroSoftF1Loss(tf.keras.losses.Loss):
-    def __init__(self, consider_true_negative=True, sigmoid_is_applied_to_input=False, name="macro_soft_f1_loss"):
-        super().__init__(name=name)
+    def __init__(self, consider_true_negative=True, sigmoid_is_applied_to_input=False, name="macro_soft_f1_loss", **kwargs):
+        super().__init__(name=name, **kwargs)
         self.consider_true_negative = consider_true_negative
         self.sigmoid_is_applied_to_input = sigmoid_is_applied_to_input
 
@@ -41,30 +73,6 @@ class MacroSoftF1Loss(tf.keras.losses.Loss):
         })
         return config
 
-@register_keras_serializable()
-class CombinedBCESoftF1Loss(tf.keras.losses.Loss):
-    def __init__(self, alpha=0.5, consider_true_negative=True, sigmoid_is_applied_to_input=True, name="combined_bce_softf1_loss"):
-        super().__init__(name=name)
-        self.alpha = alpha
-        self.consider_true_negative = consider_true_negative
-        self.sigmoid_is_applied_to_input = sigmoid_is_applied_to_input
-
-        self.bce = tf.keras.losses.BinaryCrossentropy()
-        self.f1 = MacroSoftF1Loss(
-            consider_true_negative=self.consider_true_negative,
-            sigmoid_is_applied_to_input=self.sigmoid_is_applied_to_input
-        )
-
-    def call(self, y_true, y_pred):
-        bce_loss = self.bce(y_true, y_pred)
-        f1_loss = self.f1(y_true, y_pred)
-        return self.alpha * bce_loss + (1 - self.alpha) * f1_loss
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({
-            "alpha": self.alpha,
-            "consider_true_negative": self.consider_true_negative,
-            "sigmoid_is_applied_to_input": self.sigmoid_is_applied_to_input
-        })
-        return config
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
