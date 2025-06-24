@@ -13,7 +13,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from models.kfold_pipeline import generate_folds
 from models.combined_loss import CombinedBCESoftF1Loss
-
+from utils.migrate_model import migrate_model
 from models.kfold_pipeline import get_csv_generators
 from utils.evaluate_kfold import evaluate_test_set
 from models.train import train_model_kfold
@@ -91,7 +91,8 @@ def show_menu():
     print("4. Avaliar modelo K-Fold")
     print("5. Continuar treinamento do modelo")
     print("6. Criar modelo ensemble")
-    print("7. Sair")
+    print("7. Migrar modelos antigos para o novo formato")
+    print("8. Sair")
     print("\n" + "="*50)
 
 
@@ -99,11 +100,11 @@ def get_user_choice():
     """Obtém a escolha do usuário"""
     while True:
         try:
-            choice = int(input("\nDigite sua opção (1-7): "))
+            choice = int(input("\nDigite sua opção (1-8): "))
             if 1 <= choice <= 7:
                 return choice
             else:
-                print("Opção inválida. Por favor, digite um número entre 1 e 5.")
+                print("Opção inválida. Por favor, digite um número entre 1 e 8.")
         except ValueError:
             print("Entrada inválida. Por favor, digite um número.")
 
@@ -575,7 +576,6 @@ def main():
             input("\nPressione Enter para voltar ao menu principal...")
 
 
-
         elif choice == 5:
              
             # Carregar os geradores de dados
@@ -674,6 +674,24 @@ def main():
 
 
         elif choice == 7:
+            model_dir = input("Digite o caminho da pasta onde estão os modelos antigos (.keras): ").strip()
+            output_dir = input("Digite o caminho da pasta onde os modelos migrados serão salvos (pode ser a mesma): ").strip()
+
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            for filename in os.listdir(model_dir):
+                if filename.endswith(".keras"):
+                    old_path = os.path.join(model_dir, filename)
+                    new_path = os.path.join(output_dir, filename)
+
+                    print(f"\n[MIGRANDO] {filename}")
+                    migrate_model(old_path, new_path)
+
+            print("\n[FINALIZADO] Migração de todos os modelos concluída.")
+            input("\nPressione Enter para voltar ao menu principal...")
+
+        elif choice == 8:
             print("\nSaindo do sistema...")
             sys.exit()
 
