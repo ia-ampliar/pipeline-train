@@ -572,6 +572,8 @@ def main():
                 )
 
             print("\n[FINALIZADO] Avaliação de todos os folds concluída.")
+            input("\nPressione Enter para voltar ao menu principal...")
+
 
 
         elif choice == 5:
