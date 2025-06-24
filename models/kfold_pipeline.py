@@ -88,18 +88,22 @@ def generate_folds(csv_path, k=5, seed=42, output_dir="outputs/folds", split_rat
         print(f"[INFO] Fold {fold_idx} salvo: {train_path}, {val_path}")
 
 
-def get_csv_generators(train_csv_path, val_csv_path, test_csv_path=None, image_size=(224, 224), batch_size=64, num_classes=None):
-    train_df = pd.read_csv(train_csv_path)
-    val_df = pd.read_csv(val_csv_path)
+def get_csv_generators(train_csv_path=None, val_csv_path=None, test_csv_path=None, image_size=(224, 224), batch_size=64, num_classes=None):
+    train_generator = None
+    val_generator = None
+    test_generator = None
 
-    train_generator = CSVImageGenerator(train_df, image_size=image_size, batch_size=batch_size, shuffle=True, augment=True, num_classes=num_classes)
-    val_generator = CSVImageGenerator(val_df, image_size=image_size, batch_size=batch_size, shuffle=False, num_classes=num_classes)
+    if train_csv_path:
+        train_df = pd.read_csv(train_csv_path)
+        train_generator = CSVImageGenerator(train_df, image_size=image_size, batch_size=batch_size, shuffle=True, augment=True, num_classes=num_classes)
+
+    if val_csv_path:
+        val_df = pd.read_csv(val_csv_path)
+        val_generator = CSVImageGenerator(val_df, image_size=image_size, batch_size=batch_size, shuffle=False, num_classes=num_classes)
 
     if test_csv_path:
         test_df = pd.read_csv(test_csv_path)
         test_generator = CSVImageGenerator(test_df, image_size=image_size, batch_size=batch_size, shuffle=False, num_classes=num_classes)
-    else:
-        test_generator = None
 
     return train_generator, val_generator, test_generator
 
