@@ -11,6 +11,15 @@ import gc
 from tensorflow.keras import backend as K
 
 def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="train history/"):
+
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(e)
+            
     K.clear_session()
     gc.collect()
 
