@@ -39,11 +39,11 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
             return
 
         _, _, test_gen = get_csv_generators(
-            train_csv=None,
-            val_csv=None,
-            test_csv=test_csv,
+            train_csv_path=None,
+            val_csv_path=None,
+            test_csv_path=test_csv,
             image_size=(224, 224),
-            batch_size=64
+            batch_size=64,
         )
 
         # ===== 3. Criar pasta do fold =====
