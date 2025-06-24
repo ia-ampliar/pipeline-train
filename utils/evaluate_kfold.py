@@ -47,15 +47,20 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
             batch_size=64,
         )
 
-        class_indices = test_gen.class_indices
-        class_names = list(class_indices.keys())
+        # ===== 3. Pegar nomes reais das classes =====
+        try:
+            class_names = list(test_gen.label_map.keys())
+        except AttributeError:
+            print("[ERRO] O test_gen não possui o atributo 'label_map'. Verifique a implementação do CSVImageGenerator.")
+            return
+
         n_classes = len(class_names)
 
-        # ===== 3. Criar pasta do fold =====
+        # ===== 4. Criar pasta do fold =====
         fold_dir = os.path.join(output_base_dir, f"{model_name}_fold_{fold}")
         os.makedirs(fold_dir, exist_ok=True)
 
-        # ===== 4. Avaliação no test set =====
+        # ===== 5. Avaliação no test set =====
         results = model.evaluate(test_gen, verbose=1)
         metric_names = model.metrics_names
         results_dict = {name: value for name, value in zip(metric_names, results)}
@@ -63,7 +68,7 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         metrics_df.insert(0, 'fold', fold)
         metrics_df.to_csv(os.path.join(fold_dir, "test_metrics.csv"), index=False)
 
-        # ===== 5. Previsões =====
+        # ===== 6. Previsões =====
         y_true = []
         y_pred = []
         y_scores = []
@@ -80,7 +85,7 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         y_pred = np.array(y_pred[:test_gen.samples])
         y_scores = np.array(y_scores[:test_gen.samples])
 
-        # ===== 6. Matriz de Confusão =====
+        # ===== 7. Matriz de Confusão =====
         cm = confusion_matrix(y_true, y_pred)
         plt.figure(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
@@ -92,7 +97,7 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         plt.savefig(os.path.join(fold_dir, "confusion_matrix.png"))
         plt.close()
 
-        # ===== 7. Distribuição de Classes =====
+        # ===== 8. Distribuição de Classes =====
         y_true_labels = [class_names[i] for i in y_true]
         y_pred_labels = [class_names[i] for i in y_pred]
 
@@ -105,12 +110,12 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         plt.savefig(os.path.join(fold_dir, "class_distribution.png"))
         plt.close()
 
-        # ===== 8. Classification Report =====
+        # ===== 9. Classification Report =====
         report_text = classification_report(y_true, y_pred, target_names=class_names, digits=4)
         with open(os.path.join(fold_dir, "classification_report.txt"), 'w') as f:
             f.write(report_text)
 
-        # ===== 9. Métricas adicionais =====
+        # ===== 10. Métricas adicionais =====
         acc = accuracy_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
         recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
@@ -125,7 +130,7 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         }])
         additional_metrics.to_csv(os.path.join(fold_dir, "additional_metrics.csv"), index=False)
 
-        # ===== 10. Curva ROC Multi-Classe =====
+        # ===== 11. Curva ROC Multi-Classe =====
         y_true_binarized = label_binarize(y_true, classes=range(n_classes))
 
         fpr = dict()
@@ -149,7 +154,7 @@ def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="
         plt.savefig(os.path.join(fold_dir, "roc_curve.png"))
         plt.close()
 
-        # ===== 11. Curva de Loss e Accuracy =====
+        # ===== 12. Curva de Loss e Accuracy =====
         try:
             history_path = os.path.join(output_base_dir, f'{model_name}_training_history.csv')
             if os.path.exists(history_path):
