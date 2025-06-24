@@ -668,7 +668,7 @@ def main():
             full_metrics.to_csv(os.path.join(METRICS_PATH, 'model_metrics_log.csv'), index=False)
 
             print("✅     Concluído! Arquivos salvos em:", METRICS_PATH)
-            time.sleep(100)
+            input("\nPressione Enter para voltar ao menu principal...")
 
 
         elif choice == 7:
