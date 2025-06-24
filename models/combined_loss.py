@@ -1,4 +1,7 @@
 import tensorflow as tf
+from tensorflow.keras.saving import register_keras_serializable
+
+
 
 class MacroSoftF1Loss(tf.keras.losses.Loss):
     def __init__(self, consider_true_negative=True, sigmoid_is_applied_to_input=False, name="macro_soft_f1_loss"):
