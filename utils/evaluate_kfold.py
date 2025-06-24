@@ -7,8 +7,13 @@ import seaborn as sns
 import tensorflow as tf
 from models.kfold_pipeline import get_csv_generators
 from models.combined_loss import CombinedBCESoftF1Loss 
+import gc
+from tensorflow.keras import backend as K
 
 def evaluate_test_set(model_path, fold, model_name, folds_dir, output_base_dir="train history/"):
+    K.clear_session()
+    gc.collect()
+
     try:
         # ===== 1. Tentativa de carregar o modelo =====
         try:
