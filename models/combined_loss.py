@@ -29,6 +29,7 @@ class MacroSoftF1Loss(tf.keras.losses.Loss):
 
         return tf.reduce_mean(loss)
 
+@register_keras_serializable()
 class CombinedBCESoftF1Loss(tf.keras.losses.Loss):
     def __init__(self, alpha=0.5, consider_true_negative=True, sigmoid_is_applied_to_input=True, name="combined_bce_softf1_loss"):
         super().__init__(name=name)

@@ -9,9 +9,13 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
+
+
 from models.kfold_pipeline import generate_folds
 from models.combined_loss import CombinedBCESoftF1Loss
 
+from models.kfold_pipeline import get_csv_generators
+from utils.evaluate_kfold import evaluate_test_set
 from models.train import train_model_kfold
 from utils.config import get_gpu_memory
 from utils.config import get_callbacks
@@ -94,8 +98,8 @@ def get_user_choice():
     """Obtém a escolha do usuário"""
     while True:
         try:
-            choice = int(input("\nDigite sua opção (1-6): "))
-            if 1 <= choice <= 6:
+            choice = int(input("\nDigite sua opção (1-7): "))
+            if 1 <= choice <= 7:
                 return choice
             else:
                 print("Opção inválida. Por favor, digite um número entre 1 e 5.")
@@ -627,6 +631,42 @@ def main():
 
     
         elif choice == 6:
+            print("\n==== Avaliação de modelos K-Fold ====\n")
+
+            # Solicita os parâmetros ao usuário
+            model_name = input("Digite o nome do modelo (ex: resnet, mobilenet): ").strip()
+            model_dir = input("Digite o caminho da pasta onde estão os modelos (.keras): ").strip()
+            folds_dir = input("Digite o caminho da pasta onde estão os arquivos dos folds (fold CSVs + test.csv): ").strip()
+            output_dir = input("Digite o diretório de saída para salvar os resultados (padrão: train history/): ").strip()
+            output_dir = output_dir if output_dir else "train history/"
+
+            try:
+                k = int(input("Digite o número de folds (ex: 10): ").strip())
+            except ValueError:
+                print("[ERRO] Número de folds inválido. Abortando.")
+                return
+
+            for fold in range(k):
+                print(f"\n[INFO] Avaliando Fold {fold} - Modelo: {model_name}")
+
+                model_path = os.path.join(model_dir, f'{model_name}_fold{fold}_model_224x224.keras')
+
+                if not os.path.exists(model_path):
+                    print(f"[AVISO] Modelo para Fold {fold} não encontrado: {model_path}. Pulando.")
+                    continue
+
+                evaluate_test_set(
+                    model_path=model_path,
+                    fold=fold,
+                    model_name=model_name,
+                    folds_dir=folds_dir,
+                    output_base_dir=output_dir
+                )
+
+            print("\n[FINALIZADO] Avaliação de todos os folds concluída.")
+
+
+        elif choice == 7:
             print("\nSaindo do sistema...")
             sys.exit()
 
