@@ -71,9 +71,9 @@ def calculate_metrics(y_true, y_pred, class_names, network_name):
     print(report)
 
     accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average='weighted')
-    recall = recall_score(y_true, y_pred, average='weighted')
-    f1 = f1_score(y_true, y_pred, average='weighted')
+    precision = precision_score(y_true, y_pred, average='micro')
+    recall = recall_score(y_true, y_pred, average='micro')
+    f1 = f1_score(y_true, y_pred, average='micro')
 
     print(f"Accuracy: {accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
